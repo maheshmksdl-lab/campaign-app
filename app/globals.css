@@ -1,0 +1,336 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Campaigns tokens ────────────────────────────────────────────────
+   EVOQ Campaigns palette: violet marks actions, links and the active state.
+   Orange, green, pink and blue are channel accents (email, SMS, automation,
+   journey) and stay small — icons, chart series, highlights. Everything else
+   runs on plum-grey ink, white panels and a faint lavender canvas (same
+   system as Inventory, Desk and Projects). */
+:root {
+  /* Official palette */
+  --campaign-depth: #3d1e5c;
+  --campaign-primary: #5b21b6;
+  --campaign-action: #7c3aed;
+  --campaign-hover: #6d28d9;
+  --campaign-soft: #ddd6fe;
+  --campaign-tint: #f3e8ff;
+  --campaign-surface: #faf5ff;
+
+  --campaign-accent-orange: #ff7d3d;
+  --campaign-accent-green: #2d9d78;
+  --campaign-accent-pink: #e85d87;
+  --campaign-accent-blue: #3b5998;
+
+  --campaign-background: #ffffff;
+  --campaign-background-muted: #f8f8fc;
+  --campaign-text: #272238;
+  --campaign-text-muted: #777386;
+  --campaign-border: #eae6f1;
+
+  --campaign-gradient-brand: linear-gradient(135deg, #3d1e5c 0%, #5b21b6 48%, #7c3aed 100%);
+  --campaign-gradient-soft: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  --campaign-gradient-hero: linear-gradient(120deg, #3d1e5c 0%, #5b21b6 55%, #8b5cf6 100%);
+  /* Very light wash behind the page heading, as in the reference dashboard */
+  --campaign-gradient-page: radial-gradient(1200px 360px at 70% -120px, rgb(221 214 254 / 0.55), transparent 70%), linear-gradient(180deg, #fbf9fe 0%, #ffffff 420px);
+
+  /* Brand roles, named as in Inventory / Projects so shared patterns carry over */
+  --brand-depth: var(--campaign-depth);
+  --brand: var(--campaign-action);
+  --brand-action: var(--campaign-action);
+  --brand-hover: #a78bfa;
+  --brand-soft: var(--campaign-soft);
+  --brand-tint: var(--campaign-tint);
+  --brand-surface: var(--campaign-surface);
+  --brand-10: rgb(124 58 237 / 0.08);
+  --brand-depth-10: rgb(61 30 92 / 0.05);
+  --brand-press: var(--campaign-hover);
+
+  /* Channel accents, with matching soft tiles */
+  --ch-email: var(--campaign-accent-orange);
+  --ch-email-fg: #e0601f;
+  --ch-email-bg: #fff3ec;
+  --ch-sms: var(--campaign-accent-green);
+  --ch-sms-fg: #23805f;
+  --ch-sms-bg: #e9f6f1;
+  --ch-automation: var(--campaign-accent-pink);
+  --ch-automation-fg: #d2416d;
+  --ch-automation-bg: #fdeef3;
+  --ch-journey: var(--campaign-accent-blue);
+  --ch-journey-fg: #3b5998;
+  --ch-journey-bg: #eef1f8;
+
+  /* Chart series */
+  --series-sent: var(--campaign-action);
+  --series-opens: var(--campaign-accent-orange);
+  --series-clicks: var(--campaign-accent-blue);
+  --chart-grid: #efedf4;
+
+  /* Semantic states */
+  --success: #1f8a66;
+  --success-bg: #e9f6f1;
+  --warning: #b54708;
+  --warning-bg: #fff6e5;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --neutral-fg: #5d5970;
+  --neutral-bg: #f2f1f6;
+  --info: #175cd3;
+  --info-bg: #eff6ff;
+  --violet: var(--campaign-primary);
+  --violet-bg: var(--campaign-tint);
+
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 72px;
+  --header-h: 64px;
+
+  --ink: var(--campaign-text);
+  --ink-body: #3f3a52;
+  --ink-muted: var(--campaign-text-muted);
+  --ink-faint: #a9a5b8;
+  --border-color: var(--campaign-border);
+  --border-soft: #f1eff6;
+  --bg-page: var(--campaign-background);
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --card-shadow: 0 1px 2px rgb(61 30 92 / 0.03), 0 1px 3px rgb(61 30 92 / 0.03);
+  --pop-shadow: 0 12px 40px rgb(39 34 56 / 0.14);
+
+  /* shadcn/ui tokens mapped onto the Campaigns palette */
+  --background: var(--bg-page);
+  --foreground: var(--ink);
+  --card: var(--bg-card);
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--brand-tint);
+  --secondary-foreground: var(--ink);
+  --muted: var(--neutral-bg);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--brand-surface);
+  --accent-foreground: var(--ink);
+  --destructive: #dc2626;
+  --border: var(--border-color);
+  --input: var(--border-color);
+  --ring: var(--brand-action);
+  --radius: 0.625rem;
+
+  --sidebar: var(--bg-sidebar);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--campaign-tint);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--border-color);
+  --sidebar-ring: var(--brand-action);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-campaign-depth: var(--campaign-depth);
+  --color-campaign-primary: var(--campaign-primary);
+  --color-campaign-action: var(--campaign-action);
+  --color-campaign-hover: var(--campaign-hover);
+  --color-campaign-soft: var(--campaign-soft);
+  --color-campaign-tint: var(--campaign-tint);
+  --color-campaign-surface: var(--campaign-surface);
+  --color-campaign-muted: var(--campaign-background-muted);
+
+  --color-brand-depth: var(--brand-depth);
+  --color-brand: var(--brand);
+  --color-brand-action: var(--brand-action);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-10: var(--brand-10);
+  --color-brand-depth-10: var(--brand-depth-10);
+  --color-brand-press: var(--brand-press);
+
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--border-color);
+  --color-line-soft: var(--border-soft);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.2);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── Typography scale — same scale as Inventory, Desk and Projects ── */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-display: 28px;
+  --text-display--line-height: 36px;
+  --text-display--font-weight: 600;
+  --text-h1: 20px;
+  --text-h1--line-height: 28px;
+  --text-h1--font-weight: 600;
+  --text-h2: 16px;
+  --text-h2--line-height: 24px;
+  --text-h2--font-weight: 600;
+  --text-label: 14px;
+  --text-label--line-height: 20px;
+  --text-label--font-weight: 500;
+  --text-body: 14px;
+  --text-body--line-height: 22px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-nav-item: 14px;
+  --text-nav-item--line-height: 20px;
+  --text-nav-item--font-weight: 500;
+  --text-nav-group-label: 11px;
+  --text-nav-group-label--line-height: 16px;
+  --text-nav-group-label--font-weight: 500;
+  --text-nav-group-label--letter-spacing: 0.06em;
+  --text-table-header: 12px;
+  --text-table-header--line-height: 16px;
+  --text-table-header--font-weight: 500;
+  --text-table-cell: 14px;
+  --text-table-cell--line-height: 20px;
+  --text-table-cell-secondary: 12px;
+  --text-table-cell-secondary--line-height: 16px;
+  --text-field-label: 13px;
+  --text-field-label--line-height: 18px;
+  --text-field-label--font-weight: 500;
+  --text-button: 14px;
+  --text-button--line-height: 20px;
+  --text-button--font-weight: 500;
+  --text-button-sm: 13px;
+  --text-button-sm--line-height: 18px;
+  --text-button-sm--font-weight: 500;
+  --text-card-title: 16px;
+  --text-card-title--line-height: 24px;
+  --text-card-title--font-weight: 600;
+  --text-badge: 12px;
+  --text-badge--line-height: 16px;
+  --text-badge--font-weight: 500;
+
+  --shadow-card: var(--card-shadow);
+  --shadow-pop: var(--pop-shadow);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--bg-page);
+    color: var(--ink-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: var(--campaign-tint);
+    color: var(--campaign-depth);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand-action);
+    outline-offset: 2px;
+  }
+  [data-slot]:focus-visible {
+    outline: none;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #d9d5e3 transparent;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .bg-gradient-brand {
+    background-image: var(--campaign-gradient-brand);
+  }
+  .bg-gradient-soft {
+    background-image: var(--campaign-gradient-soft);
+  }
+  .bg-gradient-hero {
+    background-image: var(--campaign-gradient-hero);
+  }
+}
+
+/* Content area offset by the fixed header and the (desktop) sidebar, which can collapse to a rail. */
+.app-content {
+  padding-top: 60px;
+  background: var(--campaign-gradient-page);
+  background-repeat: no-repeat;
+}
+@media (min-width: 1024px) {
+  .app-content {
+    padding-top: var(--header-h);
+    margin-left: var(--sidebar-w);
+  }
+  [data-sidebar="collapsed"] .app-content {
+    margin-left: var(--sidebar-w-collapsed);
+  }
+}
+
+/* Recharts draws a focus outline on its wrapper when clicked; keyboard focus is shown on the card instead. */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-sector:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
