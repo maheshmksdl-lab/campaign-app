@@ -28,6 +28,8 @@ const toolClass =
 /** What the header search looks in, by section of the app. */
 function searchScope(pathname: string) {
   if (pathname === CONTACTS_ROUTE || pathname.startsWith(`${CONTACTS_ROUTE}/`)) return { key: "contacts", label: "Contacts" } as const;
+  // WhatsApp Templates live under /templates too, but the email gallery can't search them.
+  if (pathname.startsWith(`${TEMPLATES_ROUTE}/whatsapp`)) return { key: "campaigns", label: "Campaigns" } as const;
   if (pathname === TEMPLATES_ROUTE || pathname.startsWith(`${TEMPLATES_ROUTE}/`)) return { key: "templates", label: "Email Templates" } as const;
   return { key: "campaigns", label: "Campaigns" } as const;
 }

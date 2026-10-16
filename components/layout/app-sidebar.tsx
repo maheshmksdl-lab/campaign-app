@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ReactElement } from "react";
+import { Suspense, useEffect, useRef, type ReactElement } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CaretDownIcon, CrownSimpleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
@@ -64,8 +64,19 @@ function NavRow({ item, active, collapsed, onNavigate }: { item: NavItem; active
 function NavList({ collapsed, onNavigate, type }: { collapsed: boolean; onNavigate?: () => void; type: string }) {
   const pathname = usePathname();
   const current = activeNav(pathname, type);
+  const ref = useRef<HTMLDivElement>(null);
+  // Keep the active entry visible when it sits below the fold of a short sidebar (e.g. Library items).
+  useEffect(() => {
+    const nav = ref.current?.closest("nav");
+    const link = ref.current?.querySelector<HTMLElement>("[aria-current=page]");
+    if (!nav || !link) return;
+    const n = nav.getBoundingClientRect();
+    const l = link.getBoundingClientRect();
+    if (l.bottom > n.bottom) nav.scrollTop += l.bottom - n.bottom + 12;
+    else if (l.top < n.top) nav.scrollTop -= n.top - l.top + 12;
+  }, [current]);
   return (
-    <div className="space-y-1">
+    <div ref={ref} className="space-y-1">
       {NAV_GROUPS.map((group, i) => {
         const headingId = group.label ? `nav-group-${i}` : undefined;
         return (

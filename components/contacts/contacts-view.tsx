@@ -214,6 +214,7 @@ export function ContactsView() {
 
   return (
     <div className="flex flex-1 flex-col">
+      <h1 className="sr-only">Contacts</h1>
       <div className="border-b border-line bg-white">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-2 px-4 pt-3 sm:px-5">
           {/* Tabs */}
