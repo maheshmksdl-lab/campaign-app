@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { CampaignDetailView } from "@/components/campaigns/campaign-detail-view";
+import { CampaignRoute } from "@/components/campaigns/campaign-route";
 
 export const metadata: Metadata = { title: "Campaign details" };
 
-export default async function CampaignPage({ params }: PageProps<"/campaigns/[campaignId]">) {
+export default async function CampaignPage({ params, searchParams }: PageProps<"/campaigns/[campaignId]">) {
   const { campaignId } = await params;
-  return <CampaignDetailView id={decodeURIComponent(campaignId)} />;
+  const { view, type } = await searchParams;
+  return <CampaignRoute id={decodeURIComponent(campaignId)} view={typeof view === "string" ? view : undefined} type={typeof type === "string" ? type : undefined} />;
 }

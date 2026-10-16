@@ -12,9 +12,11 @@ import { addMinutes } from "@/lib/format";
 import { DEMO_NOW, seedActivity, seedCampaigns } from "@/lib/mock-data/campaigns";
 import { seedContacts, seedLists, seedSegments } from "@/lib/mock-data/contacts";
 import { seedTemplates } from "@/lib/mock-data/templates";
+import { seedFiles, seedForms, seedWaCampaigns, seedWaTemplates, seedWorkflows } from "@/lib/mock-data/workspace";
 import type { Contact, ContactList, Segment } from "@/lib/types/audience";
 import type { ActivityEntry, Campaign } from "@/lib/types/campaigns";
 import type { EmailTemplate } from "@/lib/types/templates";
+import type { AssetFile, SignupForm, WaCampaign, WaTemplate, Workflow } from "@/lib/types/workspace";
 
 const STORAGE_KEY = "evoq-campaigns:demo-data";
 /** Bump when a stored shape changes incompatibly; older data is then reseeded. */
@@ -36,7 +38,16 @@ interface Saved {
   lists: ContactList[];
   segments: Segment[];
   templates: EmailTemplate[];
+  whatsapp: WaCampaign[];
+  waTemplates: WaTemplate[];
+  forms: SignupForm[];
+  workflows: Workflow[];
+  files: AssetFile[];
 }
+
+/** Collections added in later releases; missing ones fall back to their seed. */
+const WORKSPACE_SEEDS = { whatsapp: seedWaCampaigns, waTemplates: seedWaTemplates, forms: seedForms, workflows: seedWorkflows, files: seedFiles } as const;
+type WorkspaceKey = keyof typeof WORKSPACE_SEEDS;
 
 interface State {
   campaigns: Campaign[];
@@ -45,6 +56,11 @@ interface State {
   lists: ContactList[];
   segments: Segment[];
   templates: EmailTemplate[];
+  whatsapp: WaCampaign[];
+  waTemplates: WaTemplate[];
+  forms: SignupForm[];
+  workflows: Workflow[];
+  files: AssetFile[];
 }
 
 let state: State | null = null;
@@ -89,6 +105,13 @@ function contactsFrom(seed: Contact[], delta: unknown): Contact[] {
   return [...added, ...kept];
 }
 
+/** Ready-made templates added in a later release join data saved before it (people's own templates are untouched). */
+function withNewGallery(saved: EmailTemplate[]): EmailTemplate[] {
+  const have = new Set(saved.map((t) => t.id));
+  const missing = seedTemplates().filter((t) => t.system && !have.has(t.id));
+  return missing.length ? [...saved, ...missing] : saved;
+}
+
 function load(): State {
   if (state) return state;
   const saved = readSaved();
@@ -105,7 +128,12 @@ function load(): State {
     ),
     lists: isRecordArray<ContactList>(saved.lists, (x) => typeof x.name === "string") ? saved.lists : seedLists(),
     segments: isRecordArray<Segment>(saved.segments, (x) => Array.isArray(x.conditions)) ? saved.segments : seedSegments(),
-    templates: isRecordArray<EmailTemplate>(saved.templates, (x) => !!x.content && typeof x.content === "object") ? saved.templates : seedTemplates(),
+    templates: isRecordArray<EmailTemplate>(saved.templates, (x) => !!x.content && typeof x.content === "object") ? withNewGallery(saved.templates) : seedTemplates(),
+    whatsapp: isRecordArray<WaCampaign>(saved.whatsapp, (x) => typeof x.body === "string") ? saved.whatsapp : WORKSPACE_SEEDS.whatsapp(),
+    waTemplates: isRecordArray<WaTemplate>(saved.waTemplates, (x) => typeof x.body === "string") ? saved.waTemplates : WORKSPACE_SEEDS.waTemplates(),
+    forms: isRecordArray<SignupForm>(saved.forms, (x) => Array.isArray(x.fields)) ? saved.forms : WORKSPACE_SEEDS.forms(),
+    workflows: isRecordArray<Workflow>(saved.workflows, (x) => Array.isArray(x.steps)) ? saved.workflows : WORKSPACE_SEEDS.workflows(),
+    files: isRecordArray<AssetFile>(saved.files, (x) => typeof x.size === "number") ? saved.files : WORKSPACE_SEEDS.files(),
   };
   return state;
 }
@@ -150,6 +178,11 @@ function save() {
     lists: state.lists,
     segments: state.segments,
     templates: state.templates,
+    whatsapp: state.whatsapp,
+    waTemplates: state.waTemplates,
+    forms: state.forms,
+    workflows: state.workflows,
+    files: state.files,
   };
   try {
     s.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -207,6 +240,14 @@ export const contacts = () => load().contacts;
 export const lists = () => load().lists;
 export const segments = () => load().segments;
 export const templates = () => load().templates;
+
+/** WhatsApp campaigns and templates, forms, workflows and files. */
+export function workspace<K extends WorkspaceKey>(key: K): State[K] {
+  return load()[key];
+}
+export function replaceWorkspace<K extends WorkspaceKey>(key: K, next: State[K]) {
+  load()[key] = next;
+}
 
 export const replaceCampaigns = (next: Campaign[]) => {
   load().campaigns = next;

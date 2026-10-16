@@ -48,10 +48,24 @@ export function liveAudience(id: string): Audience | undefined {
   return src ? { id, name: src.name, kind: src.kind, size: derived(`reach:${id}`, () => reachableCount(src.members)) } : undefined;
 }
 
+/** A campaign's selected lists and segments (older records hold only `audienceId`). */
+export const campaignAudienceIds = (c: Pick<Campaign, "audienceId" | "audienceIds">): string[] => (c.audienceIds?.length ? c.audienceIds : c.audienceId ? [c.audienceId] : []);
+
+/** Label and reach for a selection: "Customers + 2 more", unique eligible contacts. */
+export function selectionSummary(ids: string[]): { ids: string[]; label: string; recipients: number } {
+  const valid = [...new Set(ids)].filter((id) => !!audienceSource(id));
+  if (valid.length > MAX_AUDIENCE_SOURCES) throw new ApiError(`Choose up to ${MAX_AUDIENCE_SOURCES} lists or segments`, "audience");
+  if (!valid.length) return { ids: [], label: "", recipients: 0 };
+  const first = audienceSource(valid[0])!.name;
+  const listIds = valid.filter((id) => lists().some((l) => l.id === id));
+  const segmentIds = valid.filter((id) => !listIds.includes(id));
+  return { ids: valid, label: valid.length === 1 ? first : `${first} + ${valid.length - 1} more`, recipients: estimateAudienceNow({ listIds, segmentIds }).eligible };
+}
+
 /** Campaigns that will still send to this list or segment (drafts, scheduled, paused before sending). */
 export function audienceUsage(id: string): AudienceUsage[] {
   return campaigns()
-    .filter((c: Campaign) => c.audienceId === id && (c.status === "draft" || c.status === "scheduled" || (c.status === "paused" && c.pausedFrom === "scheduled")))
+    .filter((c: Campaign) => campaignAudienceIds(c).includes(id) && (c.status === "draft" || c.status === "scheduled" || (c.status === "paused" && c.pausedFrom === "scheduled")))
     .map((c) => ({ id: c.id, name: c.name, status: c.status }));
 }
 

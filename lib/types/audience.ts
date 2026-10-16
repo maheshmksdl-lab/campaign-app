@@ -22,6 +22,7 @@ export interface Contact {
   phone?: string;
   mobile?: string;
   company?: string;
+  country?: string;
   tags: string[];
   /** Static list membership; segments are computed from the other fields. */
   listIds: string[];
@@ -56,6 +57,9 @@ export interface ContactQuery {
   tag?: string;
   subscription?: SubscriptionStatus;
   source?: ContactSource;
+  emailStatus?: EmailStatus;
+  /** Added in the last N days. */
+  addedWithinDays?: number;
 }
 
 export interface ContactPage {
@@ -76,6 +80,7 @@ export interface ContactInput {
   phone?: string;
   mobile?: string;
   company?: string;
+  country?: string;
   tags: string[];
   listIds: string[];
   subscription: SubscriptionStatus;
@@ -164,7 +169,7 @@ export interface ListInput {
 
 // ── Segments ─────────────────────────────────────────────────────────
 
-export type SegmentField = "firstName" | "lastName" | "email" | "company" | "tags" | "subscription" | "addedAt" | "source" | "engagement";
+export type SegmentField = "firstName" | "lastName" | "email" | "company" | "country" | "tags" | "subscription" | "emailStatus" | "addedAt" | "source" | "engagement";
 
 export type SegmentOperator =
   | "is"

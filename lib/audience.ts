@@ -80,6 +80,9 @@ export interface SegmentFieldMeta {
   options?: { value: string; label: string }[];
 }
 
+/** Countries in the demo contact data. */
+export const COUNTRY_OPTIONS = ["Australia", "Brazil", "Canada", "France", "Germany", "India", "Japan", "Spain", "United Kingdom", "United States"];
+
 const TEXT_OPS: SegmentOperator[] = ["is", "is_not", "contains", "not_contains", "starts_with", "ends_with", "is_empty", "is_not_empty"];
 
 export const SEGMENT_FIELDS: Record<SegmentField, SegmentFieldMeta> = {
@@ -87,8 +90,10 @@ export const SEGMENT_FIELDS: Record<SegmentField, SegmentFieldMeta> = {
   lastName: { label: "Last Name", operators: TEXT_OPS },
   email: { label: "Email", operators: TEXT_OPS },
   company: { label: "Company", operators: TEXT_OPS },
+  country: { label: "Country", operators: ["is", "is_not", "is_empty", "is_not_empty"], options: COUNTRY_OPTIONS.map((c) => ({ value: c, label: c })) },
   tags: { label: "Tags", operators: ["contains", "not_contains", "is_empty", "is_not_empty"] },
   subscription: { label: "Subscription status", operators: ["is", "is_not"], options: Object.entries(SUBSCRIPTION_LABEL).map(([value, label]) => ({ value, label })) },
+  emailStatus: { label: "Email status", operators: ["is", "is_not"], options: [{ value: "valid", label: "Valid" }, { value: "invalid", label: "Invalid" }] },
   addedAt: { label: "Added date", operators: ["in_last_days", "not_in_last_days", "before", "after"] },
   source: { label: "Contact source", operators: ["is", "is_not"], options: Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label })) },
   engagement: { label: "Campaign engagement", operators: ["is", "is_not", "at_least", "at_most"], options: ENGAGEMENT_ORDER.map((value) => ({ value, label: ENGAGEMENT_LABEL[value] })) },
@@ -175,7 +180,12 @@ export function matchCondition(c: Contact, cond: SegmentCondition, today: string
     }
     case "subscription":
     case "source":
+    case "emailStatus":
       return op === "is" ? c[field] === value : op === "is_not" ? c[field] !== value : false;
+    case "country":
+      if (op === "is_empty") return !c.country;
+      if (op === "is_not_empty") return !!c.country;
+      return op === "is" ? c.country === value : op === "is_not" ? c.country !== value : false;
     case "engagement": {
       const rank = (l: string) => ENGAGEMENT_ORDER.indexOf(l as EngagementLevel);
       if (op === "is") return c.engagement === value;

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowCounterClockwiseIcon, BellIcon, CaretDownIcon, GearSixIcon, InfoIcon, ListIcon, MagnifyingGlassIcon, PlusIcon, QuestionIcon, SignOutIcon, UserCircleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CreateCampaignDialog, useCreateDialog } from "@/components/campaigns/campaign-dialogs";
@@ -14,7 +14,10 @@ import { resetDemoData } from "@/lib/api/store";
 import { initials } from "@/lib/format";
 import { CURRENT_USER } from "@/lib/mock-data/campaigns";
 import { notInPhase } from "@/lib/phase";
+import { CONTACTS_ROUTE, GALLERY_ROUTE, TEMPLATES_ROUTE } from "@/lib/content-session";
 import { CAMPAIGNS_ROUTE, campaignHref } from "@/lib/routes";
+import { toast } from "sonner";
+import { signOut, useSession } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "./app-logo";
 import { useShell } from "./shell-context";
@@ -22,20 +25,29 @@ import { useShell } from "./shell-context";
 const toolClass =
   "relative inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-ink-body transition-colors hover:bg-brand-depth-10 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-action data-[state=open]:bg-brand-depth-10";
 
+/** What the header search looks in, by section of the app. */
+function searchScope(pathname: string) {
+  if (pathname === CONTACTS_ROUTE || pathname.startsWith(`${CONTACTS_ROUTE}/`)) return { key: "contacts", label: "Contacts" } as const;
+  if (pathname === TEMPLATES_ROUTE || pathname.startsWith(`${TEMPLATES_ROUTE}/`)) return { key: "templates", label: "Email Templates" } as const;
+  return { key: "campaigns", label: "Campaigns" } as const;
+}
+
 /**
- * Header search over campaigns (name, subject, audience). Suggestions open as
- * you type; Enter opens the Campaigns list filtered by the text. `Ctrl/⌘ K` or `/` focuses it.
+ * Header search. In Campaigns it searches campaigns (name, subject, audience)
+ * with suggestions as you type; Enter opens the list filtered by the text. In
+ * Contacts and Email Templates, Enter filters that page. `Ctrl/⌘ K` or `/` focuses it.
  */
 function SearchField({ autoFocus, onDone, className }: { autoFocus?: boolean; onDone?: () => void; className?: string }) {
   const router = useRouter();
+  const scope = searchScope(usePathname());
   const ref = useRef<HTMLInputElement>(null);
   const listId = useId();
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const term = value.trim();
-  const { data: results } = useCampaignSearch(term);
-  const items = term ? (results ?? []) : [];
+  const { data: results } = useCampaignSearch(scope.key === "campaigns" ? term : "");
+  const items = term && scope.key === "campaigns" ? (results ?? []) : [];
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
@@ -64,12 +76,18 @@ function SearchField({ autoFocus, onDone, className }: { autoFocus?: boolean; on
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (activeIdx >= 0 && items[activeIdx]) router.push(campaignHref(items[activeIdx].id));
+    if (scope.key === "contacts") {
+      const p = new URLSearchParams(window.location.search);
+      if (term) p.set("q", term);
+      else p.delete("q");
+      router.push(p.toString() ? `${CONTACTS_ROUTE}?${p}` : CONTACTS_ROUTE);
+    } else if (scope.key === "templates") router.push(term ? `${GALLERY_ROUTE}?q=${encodeURIComponent(term)}` : GALLERY_ROUTE);
+    else if (activeIdx >= 0 && items[activeIdx]) router.push(campaignHref(items[activeIdx].id));
     else router.push(term ? `${CAMPAIGNS_ROUTE}?q=${encodeURIComponent(term)}` : CAMPAIGNS_ROUTE);
     finish();
   };
 
-  const showList = open && term.length > 0;
+  const showList = open && term.length > 0 && scope.key === "campaigns";
 
   return (
     <form role="search" onSubmit={submit} className={cn("relative", className)}>
@@ -101,8 +119,8 @@ function SearchField({ autoFocus, onDone, className }: { autoFocus?: boolean; on
             setActiveIdx((i) => (i <= 0 ? items.length - 1 : i - 1));
           }
         }}
-        placeholder="Search campaigns…"
-        aria-label="Search campaigns"
+        placeholder={`Search in ${scope.label} ( / )`}
+        aria-label={`Search ${scope.label.toLowerCase()}`}
         aria-keyshortcuts="Control+K Meta+K"
         className="h-10 w-full rounded-lg border border-line bg-white pr-14 pl-10 text-[13px] text-ink outline-none placeholder:text-ink-muted transition-colors focus:border-brand-hover focus:ring-3 focus:ring-brand-10 [&::-webkit-search-cancel-button]:hidden"
       />
@@ -195,6 +213,9 @@ function NotificationsMenu() {
 
 function AccountMenu() {
   const [confirmReset, setConfirmReset] = useState(false);
+  const router = useRouter();
+  const session = useSession();
+  const user = { name: session?.name ?? CURRENT_USER.name, email: session?.email ?? CURRENT_USER.email, org: session?.company || CURRENT_USER.org };
   const reset = () => {
     resetDemoData();
     // A fresh page load clears every cached view at once.
@@ -204,22 +225,22 @@ function AccountMenu() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          aria-label={`Account menu for ${CURRENT_USER.name}`}
+          aria-label={`Account menu for ${user.name}`}
           className="ml-1 inline-flex items-center gap-2.5 rounded-full p-0.5 transition-colors hover:bg-brand-depth-10 focus-visible:outline-2 focus-visible:outline-brand-action sm:rounded-lg sm:py-1 sm:pr-2 sm:pl-1"
         >
           <span className="inline-flex size-9 items-center justify-center rounded-full bg-gradient-brand text-[12.5px] font-semibold text-white" aria-hidden>
-            {initials(CURRENT_USER.name)}
+            {initials(user.name)}
           </span>
           <span className="hidden text-left xl:block">
-            <span className="block text-[13px] leading-4 font-semibold text-ink">{CURRENT_USER.name}</span>
-            <span className="block text-[12px] leading-4 text-ink-muted">{CURRENT_USER.org}</span>
+            <span className="block text-[13px] leading-4 font-semibold text-ink">{user.name}</span>
+            <span className="block text-[12px] leading-4 text-ink-muted">{user.org}</span>
           </span>
           <CaretDownIcon size={14} aria-hidden className="hidden text-ink-muted sm:block" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64 rounded-xl">
           <DropdownMenuLabel className="px-2 py-1.5">
-            <span className="block text-[14px] font-semibold text-ink">{CURRENT_USER.name}</span>
-            <span className="block text-[12px] font-normal text-ink-muted">{CURRENT_USER.email}</span>
+            <span className="block text-[14px] font-semibold text-ink">{user.name}</span>
+            <span className="block text-[12px] font-normal text-ink-muted">{user.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => notInPhase("Profile settings")}>
@@ -232,13 +253,19 @@ function AccountMenu() {
           <DropdownMenuItem onSelect={() => setConfirmReset(true)}>
             <ArrowCounterClockwiseIcon aria-hidden /> Reset demo data
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => notInPhase("Sign out")}>
+          <DropdownMenuItem
+            onSelect={() => {
+              signOut();
+              toast.success("Signed out", { description: "Your demo data stays in this browser." });
+              router.replace("/login");
+            }}
+          >
             <SignOutIcon aria-hidden /> Sign out
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <p className="flex gap-2 px-2 py-1.5 text-[12px] leading-4 text-ink-muted">
             <InfoIcon size={14} aria-hidden className="mt-px shrink-0" />
-            Frontend demo: sample data, with your changes saved in this browser only. There is no real sign-in.
+            Frontend demo: sample data, with your changes saved in this browser only. Sign-in is simulated — no password is stored.
           </p>
         </DropdownMenuContent>
       </DropdownMenu>

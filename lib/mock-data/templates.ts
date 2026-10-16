@@ -6,6 +6,7 @@ import { addDays } from "@/lib/format";
 import { buildLayout, button, columns, DEFAULT_STYLE, divider, footer, heading, idFactory, image, paragraph, placeholderImage, social, spacer } from "@/lib/email-blocks";
 import type { EmailContent, EmailTemplate, TemplateCategory } from "@/lib/types/templates";
 import { DEMO_TODAY } from "./campaigns";
+import { GALLERY_EXTRA } from "./gallery-templates";
 
 export const TEMPLATE_CATEGORIES: { value: TemplateCategory; label: string }[] = [
   { value: "newsletter", label: "Newsletter" },
@@ -15,9 +16,25 @@ export const TEMPLATE_CATEGORIES: { value: TemplateCategory; label: string }[] =
   { value: "event", label: "Event Invitation" },
   { value: "announcement", label: "Product Announcement" },
   { value: "onboarding", label: "Customer Onboarding" },
+  { value: "thank-you", label: "Thank You" },
+  { value: "seasonal", label: "Seasonal" },
+  { value: "deals", label: "Deals & Offers" },
+  { value: "holiday", label: "Holiday" },
 ];
 
 export const categoryLabel = (c: TemplateCategory) => TEMPLATE_CATEGORIES.find((x) => x.value === c)?.label ?? c;
+
+/** The Template Gallery's category filters, each covering one or more template categories. */
+export const GALLERY_FILTERS: { key: string; label: string; categories: TemplateCategory[] }[] = [
+  { key: "welcome", label: "Welcome", categories: ["welcome", "onboarding"] },
+  { key: "thank-you", label: "Thank you", categories: ["thank-you"] },
+  { key: "newsletters", label: "Newsletters", categories: ["newsletter", "product-update"] },
+  { key: "events", label: "Event announcement", categories: ["event", "announcement"] },
+  { key: "sales", label: "Sales and Promotions", categories: ["promotional"] },
+  { key: "seasons", label: "Seasons", categories: ["seasonal"] },
+  { key: "deals", label: "Deals & Offers", categories: ["deals"] },
+  { key: "holidays", label: "Holidays", categories: ["holiday"] },
+];
 
 const stamp = (daysBefore: number, time = "10:00:00") => `${addDays(DEMO_TODAY, -daysBefore)}T${time}`;
 
@@ -226,6 +243,6 @@ const MINE: EmailTemplate[] = [
 ];
 
 export function seedTemplates(): EmailTemplate[] {
-  const gallery = GALLERY.map((t, i) => ({ ...t, createdAt: stamp(200 - i, "09:00:00"), updatedAt: stamp(200 - i, "09:00:00") }));
+  const gallery = [...GALLERY_EXTRA, ...GALLERY].map((t, i) => ({ ...t, createdAt: stamp(200 - i, "09:00:00"), updatedAt: stamp(200 - i, "09:00:00") }));
   return [...MINE, ...gallery];
 }

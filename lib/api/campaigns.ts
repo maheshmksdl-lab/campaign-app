@@ -8,10 +8,10 @@
 import { addDays, daysBetween, formatDateTime, formatNumber, parseDateTime, pct, pluralize } from "@/lib/format";
 import { canPause, canResume, canSchedule, contentLocked, isFlow, isSms } from "@/lib/campaign-meta";
 import { automationSends, CONTACT_COUNT, CONTACT_LIMIT, CURRENT_USER, DEFAULT_SENDER, DEMO_TODAY, ENGAGEMENT_CURVE, hash, newContactsOn, rng, runEnd } from "@/lib/mock-data/campaigns";
-import { liveAudience } from "./audiences";
+import { liveAudience, selectionSummary } from "./audiences";
 import { ApiError, type BulkResult } from "./errors";
 import { activity, campaigns, clone, commit, delay, demoNow, newId as makeId, replaceCampaigns } from "./store";
-import type { ActivityEntry, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
+import type { ActivityEntry, AnalyticsChannel, AnalyticsData, AnalyticsTotals, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
 
 export { ApiError, type BulkResult } from "./errors";
 export { getAudiences } from "./audiences";
@@ -66,14 +66,14 @@ function curveWeights(elapsedDays: number): number[] {
 }
 
 /** One row per day from `from` to `to`, built from the campaign records. */
-function dailyStats(from: string, to: string, today: string): DayStats[] {
+function dailyStats(from: string, to: string, today: string, include: (c: Campaign) => boolean = () => true, smsClicks = false): DayStats[] {
   const n = daysBetween(from, to) + 1;
   const rows: DayStats[] = Array.from({ length: n }, (_, i) => ({ date: addDays(from, i), emailsSent: 0, opens: 0, clicks: 0, conversions: 0, smsSent: 0, newContacts: 0, totalContacts: 0 }));
   const at = (date: string) => rows[daysBetween(from, date)];
   const inRange = (date: string) => date >= from && date <= to;
 
   for (const c of campaigns()) {
-    if (!c.sentAt || !c.sent) continue;
+    if (!c.sentAt || !c.sent || !include(c)) continue;
     const start = c.sentAt.slice(0, 10);
     if (isFlow(c)) {
       const end = runEnd(c, today);
@@ -100,7 +100,7 @@ function dailyStats(from: string, to: string, today: string): DayStats[] {
       if (!isSms(c)) {
         row.opens += (c.opens ?? 0) * w;
         row.clicks += (c.clicks ?? 0) * w;
-      }
+      } else if (smsClicks) row.clicks += (c.clicks ?? 0) * w;
       row.conversions += (c.conversions ?? 0) * w;
     });
   }
@@ -181,6 +181,65 @@ export async function getDashboard(days: number): Promise<DashboardData> {
     upcoming,
     activity: activity().slice(0, 5),
     contactLimit: CONTACT_LIMIT,
+  });
+}
+
+// ── Analytics ────────────────────────────────────────────────────────
+
+function totalsFor(list: Campaign[]): AnalyticsTotals {
+  const s = (k: "sent" | "delivered" | "opens" | "clicks" | "bounces" | "unsubscribes" | "conversions" | "failed") => list.reduce((n, c) => n + (c[k] ?? 0), 0);
+  const sent = s("sent");
+  const delivered = s("delivered");
+  const emailDelivered = list.filter((c) => !isSms(c)).reduce((n, c) => n + (c.delivered ?? 0), 0);
+  return {
+    campaigns: list.length,
+    sent,
+    delivered,
+    opens: s("opens"),
+    clicks: s("clicks"),
+    bounces: s("bounces") + s("failed"),
+    unsubscribes: s("unsubscribes"),
+    conversions: s("conversions"),
+    deliveryRate: round1(pct(delivered, sent)),
+    openRate: round1(pct(s("opens"), emailDelivered)),
+    clickRate: round1(pct(s("clicks"), delivered)),
+    bounceRate: round1(pct(s("bounces") + s("failed"), sent)),
+    unsubscribeRate: Math.round(pct(s("unsubscribes"), delivered) * 100) / 100,
+    conversionRate: round1(pct(s("conversions"), delivered)),
+  };
+}
+
+/**
+ * Reports & Analytics: totals for campaigns that started sending in the range
+ * (and the period before, for comparison), daily series, per-channel figures
+ * and audience growth. Built from the same records as the dashboard.
+ */
+export async function getAnalytics(days: number, channel: AnalyticsChannel): Promise<AnalyticsData> {
+  await delay();
+  const today = DEMO_TODAY;
+  const start = addDays(today, -(days - 1));
+  const prevStart = addDays(start, -days);
+  const prevEnd = addDays(start, -1);
+  const matches = (c: Campaign) => c.status !== "archived" && (channel === "all" || (channel === "email" ? !isSms(c) : isSms(c)));
+  const sentBetween = (from: string, to: string) => campaigns().filter((c) => matches(c) && c.sentAt && (c.sent ?? 0) > 0 && c.sentAt.slice(0, 10) >= from && c.sentAt.slice(0, 10) <= to);
+  const inRange = sentBetween(start, today);
+  const series = dailyStats(start, today, today, matches, channel === "sms").map((r) => ({ date: r.date, sent: channel === "sms" ? r.smsSent : channel === "email" ? r.emailsSent : r.emailsSent + r.smsSent, opens: r.opens, clicks: r.clicks, conversions: r.conversions, newContacts: r.newContacts, totalContacts: r.totalContacts }));
+  const growthDays = Math.max(28, days);
+  const growth = dailyStats(addDays(today, -(growthDays - 1)), today, today, () => false).map((r) => ({ date: r.date, total: r.totalContacts, added: r.newContacts }));
+  const channels = (["email", "sms", "automation", "journey"] as const).map((type) => {
+    const list = inRange.filter((c) => c.type === type);
+    return { type, ...totalsFor(list) };
+  });
+  return clone({
+    range: { start, end: today, days },
+    previous: { start: prevStart, end: prevEnd },
+    totals: totalsFor(inRange),
+    previousTotals: totalsFor(sentBetween(prevStart, prevEnd)),
+    series,
+    growth,
+    // Channels with nothing sent in the range are left out of the breakdown.
+    channels: channels.filter((x) => x.sent > 0 && (channel === "all" || (channel === "sms" ? x.type === "sms" : x.type !== "sms"))),
+    campaigns: inRange.sort((a, b) => b.sentAt!.localeCompare(a.sentAt!)),
   });
 }
 
@@ -319,8 +378,13 @@ export async function createCampaign(input: CampaignInput): Promise<Campaign> {
     senderEmail: sms ? undefined : DEFAULT_SENDER.email,
     senderId: sms ? DEFAULT_SENDER.smsId : undefined,
     audienceId: aud.id,
+    audienceIds: [aud.id],
     audience: aud.name,
     recipients: aud.size,
+    topic: "Marketing",
+    replyTo: sms ? undefined : DEFAULT_SENDER.email,
+    trackOpens: true,
+    trackClicks: true,
     createdAt: now,
     updatedAt: now,
     history: [
@@ -330,6 +394,45 @@ export async function createCampaign(input: CampaignInput): Promise<Campaign> {
   };
   campaigns().unshift(c);
   log({ kind: activityKind(c.type), title: c.name, detail: `${sms ? "SMS" : "Email"} draft created for ${formatNumber(aud.size)} contacts`, campaignId: c.id });
+  commit();
+  return clone(c);
+}
+
+/**
+ * A blank draft from the full-page editor (first Save Draft): no audience or
+ * sender yet — those are checked by Review & Launch, not here. Default
+ * "Untitled …" names are numbered; a name someone typed must be unique.
+ */
+export async function createDraftCampaign(type: "email" | "sms", rawName: string): Promise<Campaign> {
+  await delay();
+  const typed = rawName.trim();
+  const untitled = /^untitled (email|sms) campaign$/i.test(typed);
+  if (!untitled && campaigns().some((c) => c.name.toLowerCase() === typed.toLowerCase())) throw new ApiError("A campaign with this name already exists", "name");
+  const now = demoNow();
+  const sms = type === "sms";
+  const c: Campaign = {
+    id: newId(),
+    name: untitled ? uniqueName(typed) : typed,
+    type,
+    status: "draft",
+    subject: sms ? undefined : "",
+    message: sms ? "" : undefined,
+    senderName: sms ? DEFAULT_SENDER.name : "",
+    senderEmail: sms ? undefined : "",
+    senderId: sms ? DEFAULT_SENDER.smsId : undefined,
+    audienceId: "",
+    audienceIds: [],
+    audience: "No audience",
+    recipients: 0,
+    topic: "Marketing",
+    trackOpens: true,
+    trackClicks: true,
+    createdAt: now,
+    updatedAt: now,
+    history: [{ at: now, kind: "created", text: "Campaign created", user: CURRENT_USER.name }],
+  };
+  campaigns().unshift(c);
+  log({ kind: activityKind(c.type), title: c.name, detail: `${sms ? "SMS" : "Email"} draft created`, campaignId: c.id });
   commit();
   return clone(c);
 }
@@ -353,10 +456,43 @@ export async function updateCampaign(id: string, edit: CampaignEdit): Promise<Ca
     set("message", edit.message?.trim(), "message");
     set("senderName", edit.senderName?.trim(), "sender name");
     set("senderEmail", edit.senderEmail?.trim(), "sender email");
-    if (edit.audienceId && edit.audienceId !== c.audienceId) {
+    set("replyTo", edit.replyTo?.trim(), "reply-to address");
+    set("topic", edit.topic?.trim(), "topic");
+    set("trackReplies", edit.trackReplies, "reply tracking");
+    set("trackOpens", edit.trackOpens, "open tracking");
+    set("trackClicks", edit.trackClicks, "click tracking");
+    if (edit.attachments && JSON.stringify(edit.attachments) !== JSON.stringify(c.attachments ?? [])) {
+      c.attachments = edit.attachments.map((a) => ({ name: a.name, size: a.size }));
+      changed.push("attachments");
+    }
+    if (edit.content !== undefined && JSON.stringify(edit.content) !== JSON.stringify(c.content ?? null)) {
+      if (edit.content && JSON.stringify(edit.content).length > 1_500_000) throw new ApiError("This content is too large to save — use image links instead of uploaded images", "content");
+      c.content = edit.content ? clone(edit.content) : undefined;
+      c.contentSource = edit.content ? edit.contentSource : undefined;
+      changed.push("content");
+    }
+    if (edit.audienceIds) {
+      const sel = selectionSummary(edit.audienceIds);
+      const before = JSON.stringify(c.audienceIds ?? [c.audienceId]);
+      if (JSON.stringify(sel.ids) !== before || sel.recipients !== c.recipients) {
+        if (sel.ids.length) {
+          c.audienceIds = sel.ids;
+          c.audienceId = sel.ids[0];
+          c.audience = sel.label;
+          c.recipients = sel.recipients;
+        } else {
+          c.audienceIds = [];
+          c.audienceId = "";
+          c.audience = "No audience";
+          c.recipients = 0;
+        }
+        if (JSON.stringify(sel.ids) !== before) changed.push("audience");
+      }
+    } else if (edit.audienceId && edit.audienceId !== c.audienceId) {
       const aud = liveAudience(edit.audienceId);
       if (!aud) throw new ApiError("Choose an audience", "audienceId");
       c.audienceId = aud.id;
+      c.audienceIds = [aud.id];
       c.audience = aud.name;
       c.recipients = aud.size;
       changed.push("audience");
@@ -384,8 +520,17 @@ export async function duplicateCampaign(id: string): Promise<Campaign> {
     senderEmail: src.senderEmail,
     senderId: src.senderId,
     audienceId: src.audienceId,
-    audience: aud?.name ?? src.audience,
-    recipients: aud?.size ?? src.recipients,
+    audienceIds: src.audienceIds,
+    audience: src.audienceIds && src.audienceIds.length > 1 ? src.audience : (aud?.name ?? src.audience),
+    recipients: src.audienceIds && src.audienceIds.length > 1 ? src.recipients : (aud?.size ?? src.recipients),
+    topic: src.topic,
+    replyTo: src.replyTo,
+    trackReplies: src.trackReplies,
+    trackOpens: src.trackOpens,
+    trackClicks: src.trackClicks,
+    attachments: src.attachments && clone(src.attachments),
+    content: src.content && clone(src.content),
+    contentSource: src.contentSource,
     createdAt: now,
     updatedAt: now,
     history: [{ at: now, kind: "duplicated", text: `Created as a copy of “${src.name}”`, user: CURRENT_USER.name }],

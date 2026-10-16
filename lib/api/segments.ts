@@ -3,7 +3,7 @@ import { conditionComplete, SEGMENT_FIELDS } from "@/lib/audience";
 import { CURRENT_USER } from "@/lib/mock-data/campaigns";
 import type { Contact, Segment, SegmentInput, SegmentSummary } from "@/lib/types/audience";
 import type { ActivityEntry, Campaign } from "@/lib/types/campaigns";
-import { audienceUsage, reachableCount, segmentMembers } from "./audiences";
+import { audienceUsage, campaignAudienceIds, reachableCount, segmentMembers, selectionSummary } from "./audiences";
 import { ApiError } from "./errors";
 import { activity, campaigns, clone, commit, delay, demoNow, newId, replaceSegments, segments } from "./store";
 
@@ -81,7 +81,7 @@ export async function updateSegment(id: string, input: SegmentInput): Promise<Se
   const v = validate(input, id);
   const renamed = v.name !== s.name;
   Object.assign(s, v, { updatedAt: demoNow() });
-  if (renamed) for (const c of campaigns()) if (c.audienceId === id && c.status !== "sent" && c.status !== "sending" && c.status !== "archived") c.audience = v.name;
+  if (renamed) for (const c of campaigns()) if (campaignAudienceIds(c).includes(id) && c.status !== "sent" && c.status !== "sending" && c.status !== "archived") c.audience = selectionSummary(campaignAudienceIds(c)).label || v.name;
   commit();
   return clone(summary(s));
 }

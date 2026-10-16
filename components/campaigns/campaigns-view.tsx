@@ -117,11 +117,11 @@ const TYPE_OPTIONS = TYPE_ORDER.map((t) => ({ value: t, label: TYPE_META[t].labe
 const STATUS_OPTIONS = (["draft", "scheduled", "sending", "sent", "paused", "archived"] as CampaignStatus[]).map((s) => ({ value: s, label: STATUS_META[s].label }));
 const SORT_OPTIONS = CAMPAIGN_SORTS.map((s) => ({ value: s, label: SORT_LABEL[s] }));
 
-function Toolbar({ query, update }: { query: CampaignQuery; update: (p: Partial<CampaignQuery>) => void }) {
+function Toolbar({ query, update, channel }: { query: CampaignQuery; update: (p: Partial<CampaignQuery>) => void; channel?: Channel }) {
   const clear = () => update({ ...DEFAULT_CAMPAIGN_QUERY, sort: query.sort, size: query.size });
   return (
     <div className="grid grid-cols-2 gap-2 px-4 pt-4 pb-3 sm:px-5 md:grid-cols-3 xl:flex xl:flex-wrap xl:items-center">
-      <FilterSelect label="Campaign type" allLabel="All types" value={query.type} onChange={(type) => update({ type: type as CampaignQuery["type"] })} options={TYPE_OPTIONS} className="xl:w-[150px]" />
+      {!channel && <FilterSelect label="Campaign type" allLabel="All types" value={query.type} onChange={(type) => update({ type: type as CampaignQuery["type"] })} options={TYPE_OPTIONS} className="xl:w-[150px]" />}
       <FilterSelect label="Status" allLabel="All statuses" value={query.status} onChange={(status) => update({ status: status as StatusTab })} options={STATUS_OPTIONS} className="xl:w-[200px]" />
       <fieldset className="col-span-2 flex min-w-0 items-center gap-1.5 md:col-span-1 xl:col-auto">
         <legend className="sr-only">Date range</legend>
@@ -331,17 +331,33 @@ function TableSkeleton() {
 
 // ── Page ─────────────────────────────────────────────────────────────
 
-function Heading({ actions }: { actions?: ReactNode }) {
-  return <PageHeading crumbs={[{ label: "Overview", href: "/dashboard" }, { label: "Campaigns" }]} title="Campaigns" description="Manage and track all your marketing campaigns." actions={actions} />;
+type Channel = "email" | "sms";
+
+const CHANNEL_COPY: Record<Channel, { title: string; description: string; create: string }> = {
+  email: { title: "Email Campaigns", description: "Newsletters, offers and announcements sent by email.", create: "Create Email Campaign" },
+  sms: { title: "SMS Campaigns", description: "Short text messages with a link, sent to opted-in mobile numbers.", create: "Create SMS Campaign" },
+};
+
+function Heading({ actions, channel }: { actions?: ReactNode; channel?: Channel }) {
+  const copy = channel && CHANNEL_COPY[channel];
+  return (
+    <PageHeading
+      crumbs={[{ label: "Overview", href: "/dashboard" }, ...(copy ? [{ label: "Campaigns", href: CAMPAIGNS_ROUTE }, { label: copy.title }] : [{ label: "Campaigns" }])]}
+      title={copy?.title ?? "Campaigns"}
+      description={copy?.description ?? "Manage and track all your marketing campaigns."}
+      actions={actions}
+    />
+  );
 }
 
-export function CampaignsViewFallback() {
+export function CampaignsViewFallback({ channel }: { channel?: Channel } = {}) {
   return (
     <PageShell>
       <Heading
+        channel={channel}
         actions={
           <PrimaryButton icon={PlusIcon} disabled>
-            Create Campaign
+            {channel ? CHANNEL_COPY[channel].create : "Create Campaign"}
           </PrimaryButton>
         }
       />
@@ -352,8 +368,11 @@ export function CampaignsViewFallback() {
   );
 }
 
-export function CampaignsView() {
-  const [query, update] = useCampaignQuery();
+/** The campaign list; `channel` scopes it to Email or SMS (their own pages in the sidebar). */
+export function CampaignsView({ channel }: { channel?: Channel } = {}) {
+  const [rawQuery, update] = useCampaignQuery();
+  const query = useMemo(() => (channel ? { ...rawQuery, type: channel } : rawQuery), [rawQuery, channel]);
+  const pathname = usePathname();
   const { data, isError, refetch } = useCampaigns();
   const router = useRouter();
   const create = useCreateDialog();
@@ -367,7 +386,7 @@ export function CampaignsView() {
   const actions = useCampaignActions();
 
   // "Back to Campaigns" from a campaign returns to this exact list state.
-  useEffect(() => setCampaignsListHref(`${CAMPAIGNS_ROUTE}${campaignQueryString(query)}`), [query]);
+  useEffect(() => setCampaignsListHref(`${pathname}${campaignQueryString(rawQuery)}`), [rawQuery, pathname]);
 
   const onSearch = useCallback((q: string) => update({ q }), [update]);
 
@@ -418,11 +437,12 @@ export function CampaignsView() {
   return (
     <PageShell>
       <Heading
+        channel={channel}
         actions={
           <>
             <SearchInput value={query.q} onChange={onSearch} placeholder="Search campaigns…" label="Search campaigns" className="w-full sm:w-[260px]" />
-            <PrimaryButton icon={PlusIcon} onClick={() => create.open("email")} className="bg-gradient-brand hover:opacity-95">
-              Create Campaign
+            <PrimaryButton icon={PlusIcon} onClick={() => create.open(channel ?? "email")} className="bg-gradient-brand hover:opacity-95">
+              {channel ? CHANNEL_COPY[channel].create : "Create Campaign"}
             </PrimaryButton>
           </>
         }
@@ -439,7 +459,7 @@ export function CampaignsView() {
 
       <Card className="mt-4" label="Campaign list">
         <div id="campaigns-panel" role="tabpanel" aria-labelledby={`campaigns-tab-${query.status}`}>
-          <Toolbar query={query} update={update} />
+          <Toolbar query={rawQuery} update={update} channel={channel} />
 
           {selectedRows.length > 0 && (
             <div className="mx-4 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand-soft bg-brand-surface px-3 py-2 sm:mx-5" role="region" aria-label="Bulk actions">
@@ -476,16 +496,16 @@ export function CampaignsView() {
           ) : rows.length === 0 ? (
             <EmptyState
               icon={PaperPlaneTiltIcon}
-              title={hasFilters(query) ? "No campaigns match your filters" : "No campaigns yet"}
-              hint={hasFilters(query) ? "Try a different search, tab or date range, or clear the filters." : "Create your first campaign to start reaching your audience."}
+              title={hasFilters(rawQuery) ? "No campaigns match your filters" : "No campaigns yet"}
+              hint={hasFilters(rawQuery) ? "Try a different search, tab or date range, or clear the filters." : "Create your first campaign to start reaching your audience."}
               action={
-                hasFilters(query) ? (
+                hasFilters(rawQuery) ? (
                   <OutlineButton icon={XIcon} onClick={clearFilters}>
                     Clear filters
                   </OutlineButton>
                 ) : (
-                  <PrimaryButton icon={PlusIcon} onClick={() => create.open("email")}>
-                    Create Campaign
+                  <PrimaryButton icon={PlusIcon} onClick={() => create.open(channel ?? "email")}>
+                    {channel ? CHANNEL_COPY[channel].create : "Create Campaign"}
                   </PrimaryButton>
                 )
               }

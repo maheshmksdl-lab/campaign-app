@@ -5,8 +5,10 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import {
   archiveCampaigns,
   createCampaign,
+  createDraftCampaign,
   deleteCampaigns,
   duplicateCampaign,
+  getAnalytics,
   getAudiences,
   getCampaign,
   getDashboard,
@@ -19,7 +21,7 @@ import {
   searchCampaigns,
   updateCampaign,
 } from "@/lib/api/campaigns";
-import type { CampaignEdit, CampaignInput } from "@/lib/types/campaigns";
+import type { AnalyticsChannel, CampaignEdit, CampaignInput } from "@/lib/types/campaigns";
 
 /**
  * Data hooks for every Campaigns screen. Data is withheld until hydration so
@@ -62,6 +64,11 @@ export function useAudiences() {
   return useQuery({ queryKey: campaignKeys.audiences, queryFn: getAudiences, staleTime: Infinity });
 }
 
+export function useAnalytics(days: number, channel: AnalyticsChannel) {
+  const hydrated = useHydrated();
+  return gated(useQuery({ queryKey: ["campaigns", "analytics", days, channel], queryFn: () => getAnalytics(days, channel), placeholderData: keepPreviousData }), hydrated);
+}
+
 export function usePlanUsage() {
   const hydrated = useHydrated();
   return gated(useQuery({ queryKey: campaignKeys.plan, queryFn: getPlanUsage, staleTime: Infinity }), hydrated);
@@ -79,6 +86,11 @@ function useInvalidateAll() {
 export function useCreateCampaign() {
   const invalidate = useInvalidateAll();
   return useMutation({ mutationFn: (input: CampaignInput) => createCampaign(input), onSuccess: invalidate });
+}
+
+export function useCreateDraftCampaign() {
+  const invalidate = useInvalidateAll();
+  return useMutation({ mutationFn: ({ type, name }: { type: "email" | "sms"; name: string }) => createDraftCampaign(type, name), onSuccess: invalidate });
 }
 
 export function useUpdateCampaign() {

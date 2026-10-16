@@ -117,7 +117,7 @@ export type EmailContent =
   | { kind: "html"; html: string }
   | { kind: "text"; text: string };
 
-export type TemplateCategory = "newsletter" | "promotional" | "welcome" | "product-update" | "event" | "announcement" | "onboarding";
+export type TemplateCategory = "newsletter" | "promotional" | "welcome" | "product-update" | "event" | "announcement" | "onboarding" | "thank-you" | "seasonal" | "deals" | "holiday";
 
 /** How a template was started. */
 export type TemplateOrigin = "gallery" | "layout" | "html" | "scratch" | "import";
@@ -151,7 +151,7 @@ export interface TemplateEdit {
   content?: EmailContent;
 }
 
-export type LayoutKey = "single-column" | "two-column" | "three-column" | "image-text" | "text-image" | "product-grid" | "newsletter";
+export type LayoutKey = "single-column" | "two-column" | "three-column" | "header-content" | "image-text" | "text-image" | "product-grid" | "promotional" | "newsletter";
 
 /** A structured starting point (not stored; built fresh each time). */
 export interface EmailLayout {

@@ -3,7 +3,7 @@
  * so screens never hold all 12k+ contacts. Nothing leaves the browser.
  */
 import { CONTACT_TABS, inTab, isValidEmail, normalizeEmail, normalizeTags, segmentMatcher } from "@/lib/audience";
-import { addMinutes, formatNumber, pluralize } from "@/lib/format";
+import { addDays, addMinutes, formatNumber, pluralize } from "@/lib/format";
 import { CURRENT_USER, hash, rng } from "@/lib/mock-data/campaigns";
 import type { Contact, ContactActivityRow, ContactDetail, ContactEngagementRow, ContactInput, ContactPage, ContactQuery, ContactTab, ImportField, ImportOptions, ImportRow, ImportSummary } from "@/lib/types/audience";
 import type { ActivityEntry } from "@/lib/types/campaigns";
@@ -40,6 +40,7 @@ function filtered(q: Omit<ContactQuery, "tab" | "page" | "pageSize" | "sort">): 
   const digits = t.replace(/\D/g, "");
   const seg = q.segmentId ? segments().find((s) => s.id === q.segmentId) : undefined;
   const inSeg = seg ? new Set(segmentMembers(seg).map((c) => c.id)) : null;
+  const addedSince = q.addedWithinDays ? addDays(today(), -q.addedWithinDays) : "";
   return contacts().filter(
     (c) =>
       (!t || matchesSearch(c, t, digits)) &&
@@ -47,7 +48,9 @@ function filtered(q: Omit<ContactQuery, "tab" | "page" | "pageSize" | "sort">): 
       (!inSeg || inSeg.has(c.id)) &&
       (!q.tag || c.tags.includes(q.tag)) &&
       (!q.subscription || c.subscription === q.subscription) &&
-      (!q.source || c.source === q.source),
+      (!q.source || c.source === q.source) &&
+      (!q.emailStatus || c.emailStatus === q.emailStatus) &&
+      (!addedSince || c.addedAt.slice(0, 10) > addedSince),
   );
 }
 
@@ -163,6 +166,7 @@ export async function createContact(input: ContactInput): Promise<Contact> {
     phone: clean(input.phone),
     mobile: clean(input.mobile),
     company: clean(input.company),
+    country: clean(input.country),
     tags,
     listIds,
     subscription: input.subscription,
@@ -199,6 +203,7 @@ export async function updateContact(id: string, input: ContactInput): Promise<Co
     phone: clean(input.phone),
     mobile: clean(input.mobile),
     company: clean(input.company),
+    country: clean(input.country),
     tags,
     listIds,
     subscription: input.subscription,

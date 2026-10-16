@@ -33,6 +33,8 @@ const FREE_MAIL = ["gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotma
 /** Typo domains for addresses that can't receive mail. */
 const BAD_DOMAINS = ["gmial.com", "outlok.com", "yaho.com", "hotmial.com", "gmail.con", "icloud.co"];
 const TAG_POOL = ["newsletter", "webinar", "trial", "partner", "beta", "event-2025", "wholesale", "referral", "enterprise", "smb"];
+/** Weighted by repetition: most of the list is in the US. */
+const COUNTRY_POOL = ["United States", "United States", "United States", "United States", "United States", "United Kingdom", "United Kingdom", "India", "India", "Canada", "Germany", "Australia", "France", "Brazil", "Japan", "Spain"];
 const AREA_CODES = ["212", "312", "415", "512", "617", "646", "702", "718", "206", "303", "404", "305"];
 
 // Exact counts, so lists and segments match the audience sizes used across the demo.
@@ -181,6 +183,8 @@ export function seedContacts(): Contact[] {
       mobile: r() < 0.6 ? phone(r) : undefined,
       phone: r() < 0.25 ? phone(r) : undefined,
       company,
+      // From a hash, not the generator, so every other seeded value stays as it was.
+      country: COUNTRY_POOL[hash(`country:${i}`) % COUNTRY_POOL.length],
       tags: [...tags],
       listIds: [],
       subscription: "subscribed",

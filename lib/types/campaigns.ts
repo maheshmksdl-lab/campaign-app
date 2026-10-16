@@ -1,4 +1,5 @@
 /** Campaign records and the analytics derived from them. Dates are local datetimes (YYYY-MM-DDTHH:mm:ss). */
+import type { EmailContent } from "./templates";
 
 export type CampaignType = "email" | "sms" | "automation" | "journey";
 export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "paused" | "archived";
@@ -35,9 +36,25 @@ export interface Campaign {
   senderEmail?: string;
   /** SMS sender ID. */
   senderId?: string;
+  /** First selected list or segment (kept for older records and single-audience views). */
   audienceId: string;
+  /** Every selected list and segment, up to 10. Missing on older records = [audienceId]. */
+  audienceIds?: string[];
+  /** Display label: "Customers" or "Customers + 2 more". */
   audience: string;
   recipients: number;
+  /** Subscription topic recipients can opt out of. */
+  topic?: string;
+  replyTo?: string;
+  trackReplies?: boolean;
+  trackOpens?: boolean;
+  trackClicks?: boolean;
+  /** File names only — nothing is uploaded in this prototype. */
+  attachments?: CampaignAttachment[];
+  /** The campaign's own copy of its email content. */
+  content?: EmailContent;
+  /** Where the content came from ("Welcome Travel", "Two columns", "HTML import"…). */
+  contentSource?: string;
   createdAt: string;
   updatedAt: string;
   scheduledAt?: string;
@@ -81,7 +98,7 @@ export interface DayStats {
 export interface ActivityEntry {
   id: string;
   at: string;
-  kind: "email" | "sms" | "automation" | "journey" | "contacts" | "list" | "segment" | "template" | "form" | "deleted";
+  kind: "email" | "sms" | "automation" | "journey" | "contacts" | "list" | "segment" | "template" | "form" | "deleted" | "whatsapp" | "file";
   title: string;
   detail: string;
   campaignId?: string;
@@ -118,6 +135,39 @@ export interface DashboardData {
   contactLimit: number;
 }
 
+export type AnalyticsChannel = "all" | "email" | "sms";
+
+export interface AnalyticsTotals {
+  campaigns: number;
+  sent: number;
+  delivered: number;
+  opens: number;
+  clicks: number;
+  /** Email bounces plus failed SMS. */
+  bounces: number;
+  unsubscribes: number;
+  conversions: number;
+  deliveryRate: number;
+  /** % of delivered email (SMS has no opens). */
+  openRate: number;
+  clickRate: number;
+  bounceRate: number;
+  unsubscribeRate: number;
+  conversionRate: number;
+}
+
+export interface AnalyticsData {
+  range: { start: string; end: string; days: number };
+  previous: { start: string; end: string };
+  totals: AnalyticsTotals;
+  previousTotals: AnalyticsTotals;
+  series: { date: string; sent: number; opens: number; clicks: number; conversions: number; newContacts: number; totalContacts: number }[];
+  growth: { date: string; total: number; added: number }[];
+  channels: ({ type: CampaignType } & AnalyticsTotals)[];
+  /** Campaigns that started sending in the range, newest first. */
+  campaigns: Campaign[];
+}
+
 export interface EngagementPoint {
   label: string;
   /** Full label for tooltips. */
@@ -151,6 +201,11 @@ export interface CampaignInput {
   audienceId: string;
 }
 
+export interface CampaignAttachment {
+  name: string;
+  size: number;
+}
+
 export interface CampaignEdit {
   name: string;
   subject?: string;
@@ -159,4 +214,15 @@ export interface CampaignEdit {
   senderName?: string;
   senderEmail?: string;
   audienceId?: string;
+  /** Replaces the whole selection (up to 10 lists and segments). */
+  audienceIds?: string[];
+  topic?: string;
+  replyTo?: string;
+  trackReplies?: boolean;
+  trackOpens?: boolean;
+  trackClicks?: boolean;
+  attachments?: CampaignAttachment[];
+  /** null removes the content. */
+  content?: EmailContent | null;
+  contentSource?: string;
 }

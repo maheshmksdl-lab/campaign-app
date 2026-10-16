@@ -147,9 +147,11 @@ export const LAYOUTS: EmailLayout[] = [
   { key: "single-column", name: "Single column", description: "Header image, headline, text and a button." },
   { key: "two-column", name: "Two columns", description: "A headline above two side-by-side sections." },
   { key: "three-column", name: "Three columns", description: "Three short features or products in a row." },
+  { key: "header-content", name: "Header and content", description: "A coloured header band above a letter-style message." },
   { key: "image-text", name: "Image and text", description: "Image on the left, text on the right." },
   { key: "text-image", name: "Text and image", description: "Text on the left, image on the right." },
   { key: "product-grid", name: "Product grid", description: "Two rows of products with prices and buttons." },
+  { key: "promotional", name: "Promotional", description: "Sale banner, coupon code and featured products." },
   { key: "newsletter", name: "Newsletter", description: "Masthead, lead story and a list of short articles." },
 ];
 
@@ -197,6 +199,24 @@ export function buildLayout(key: LayoutKey, id: IdFn = newBlockId): EmailContent
         heading(id(), "Picked for you", { align: "center" }),
         columns(id(), [product(1, "$49.00"), product(2, "$64.00")]),
         columns(id(), [product(3, "$29.00"), product(4, "$89.00")]),
+      );
+      break;
+    case "header-content":
+      blocks.push(
+        heading(id(), "A clear headline for your message", { size: 28, align: "center", color: "#FFFFFF", background: "#5B21B6", paddingY: 36 }),
+        heading(id(), "Hi {{first_name}},", { size: 18 }),
+        paragraph(id(), "Use this space for the main message. A header band sets the tone, and the content below reads like a letter.\n\nAdd a second paragraph for details, then finish with one clear action."),
+        button(id(), "Call to action", "https://evoq.one", { align: "left" }),
+      );
+      break;
+    case "promotional":
+      blocks.push(
+        image(id(), placeholderImage("BIG SALE", "#FF7D3D", "#E85D87", 600, 240), "Sale banner", { paddingX: 0, paddingY: 0 }),
+        heading(id(), "Up to 40% off, this week only", { align: "center" }),
+        paragraph(id(), "Use the code below at checkout.", { align: "center", paddingY: 0 }),
+        heading(id(), "SAVE40", { size: 30, align: "center", color: "#E0601F", background: "#FFF3EC", paddingY: 18 }),
+        button(id(), "Shop now", "https://evoq.one/sale"),
+        columns(id(), [product(1, "$39.00"), product(2, "$59.00")]),
       );
       break;
     case "newsletter":

@@ -4,7 +4,7 @@ import { formatNumber } from "@/lib/format";
 import { CURRENT_USER } from "@/lib/mock-data/campaigns";
 import type { ContactList, ListInput, ListSummary } from "@/lib/types/audience";
 import type { ActivityEntry, Campaign } from "@/lib/types/campaigns";
-import { audienceUsage, listMembers, reachableCount } from "./audiences";
+import { audienceUsage, campaignAudienceIds, listMembers, reachableCount, selectionSummary } from "./audiences";
 import { ApiError } from "./errors";
 import { activity, campaigns, clone, commit, contacts, delay, demoNow, lists, newId, replaceLists } from "./store";
 
@@ -67,7 +67,7 @@ export async function updateList(id: string, input: ListInput): Promise<ListSumm
   const renamed = name !== l.name;
   Object.assign(l, { name, description: input.description.trim(), tags: normalizeTags(input.tags), updatedAt: demoNow() });
   // Campaigns show the audience name they were set up with; keep drafts in step.
-  if (renamed) for (const c of campaigns()) if (c.audienceId === id && c.status !== "sent" && c.status !== "sending" && c.status !== "archived") c.audience = name;
+  if (renamed) for (const c of campaigns()) if (campaignAudienceIds(c).includes(id) && c.status !== "sent" && c.status !== "sending" && c.status !== "archived") c.audience = selectionSummary(campaignAudienceIds(c)).label || name;
   commit();
   return clone(summary(l));
 }

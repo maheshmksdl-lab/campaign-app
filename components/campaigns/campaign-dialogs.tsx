@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChatCircleDotsIcon, EnvelopeSimpleIcon, LockSimpleIcon } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Badge, fieldClass, FormField, OutlineButton, StatusBadge, TypeIcon } from "@/components/shared/campaign-ui";
+import { EmailFrame } from "@/components/shared/email-ui";
 import { ChoiceField, FormDialog, SESSION_NOTE, TextAreaField, TextField, useZodForm } from "@/components/shared/form-kit";
 import { useAudiences, useCreateCampaign, useScheduleCampaign, useUpdateCampaign } from "@/hooks/use-campaigns";
 import { contentLocked, isSms, smsSegments, TYPE_META } from "@/lib/campaign-meta";
 import { addDays, formatDateTime, formatNumber } from "@/lib/format";
 import { CURRENT_USER, DEMO_TODAY } from "@/lib/mock-data/campaigns";
 import { createCampaignSchema, editCampaignSchema, scheduleSchema, SMS_MAX, type CreateCampaignValues, type EditCampaignValues, type ScheduleValues } from "@/lib/schemas/campaign";
+import { writeStored } from "@/hooks/use-stored-state";
+import { draftKey, pendingKey } from "@/lib/content-session";
+import { NEW_CAMPAIGN_ID, newCampaignHref } from "@/lib/routes";
 import type { Campaign } from "@/lib/types/campaigns";
 import { cn } from "@/lib/utils";
 
@@ -241,6 +246,11 @@ function EmailPreview({ c }: { c: Campaign }) {
           </div>
         )}
       </dl>
+      {c.content ? (
+        <div className="h-[46vh] bg-[#F4F2F8]">
+          <EmailFrame content={c.content} preheader={c.previewText} title={`Preview of ${c.name}`} />
+        </div>
+      ) : (
       <div className="max-h-[46vh] overflow-y-auto bg-[#F4F2F8] p-4 scrollbar-thin sm:p-6">
         <article className="mx-auto max-w-[520px] overflow-hidden rounded-lg bg-white shadow-card">
           <div className="bg-gradient-hero px-6 py-7 text-white">
@@ -262,6 +272,7 @@ function EmailPreview({ c }: { c: Campaign }) {
           </footer>
         </article>
       </div>
+      )}
     </div>
   );
 }
@@ -329,11 +340,21 @@ export function PreviewDialog({ campaign: c, onOpenChange, onEdit }: { campaign:
   );
 }
 
-/** Local open/close state for the create dialog with a preset type. */
+/**
+ * Create Campaign: opens the full-page editor on a blank campaign (saved on
+ * the first Save Draft). Any half-finished "new campaign" from earlier in this
+ * tab is cleared, so it always starts empty. `props` keeps the dialog API for
+ * existing callers; the dialog itself no longer opens from here.
+ */
 export function useCreateDialog() {
+  const router = useRouter();
   const [state, setState] = useState<{ open: boolean; type: "email" | "sms" }>({ open: false, type: "email" });
   return {
-    open: (type: "email" | "sms" = "email") => setState({ open: true, type }),
+    open: (type: "email" | "sms" = "email") => {
+      writeStored(draftKey(NEW_CAMPAIGN_ID), null, "session");
+      writeStored(pendingKey(NEW_CAMPAIGN_ID), null, "session");
+      router.push(newCampaignHref(type));
+    },
     props: { open: state.open, initialType: state.type, onOpenChange: (o: boolean) => setState((s) => ({ ...s, open: o })) },
   };
 }

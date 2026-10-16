@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
 import {
+  FolderSimpleIcon,
+  WhatsappLogoIcon,
   AddressBookIcon,
   BrowserIcon,
   CalendarBlankIcon,
@@ -200,6 +202,8 @@ const ACTIVITY_META: Record<ActivityEntry["kind"], { icon: Icon; fg: string; bg:
   template: { icon: NotePencilIcon, fg: "var(--ch-email-fg)", bg: "var(--ch-email-bg)" },
   form: { icon: BrowserIcon, fg: "var(--ch-automation-fg)", bg: "var(--ch-automation-bg)" },
   deleted: { icon: TrashIcon, fg: "var(--neutral-fg)", bg: "var(--neutral-bg)" },
+  whatsapp: { icon: WhatsappLogoIcon, fg: "var(--ch-sms-fg)", bg: "var(--ch-sms-bg)" },
+  file: { icon: FolderSimpleIcon, fg: "var(--ch-journey-fg)", bg: "var(--ch-journey-bg)" },
 };
 
 export function ActivityCard({ data, className }: { data: DashboardData | undefined; className?: string }) {
@@ -324,7 +328,7 @@ export function ContactGrowthCard({ data, className }: { data: DashboardData | u
   const ticks = Math.max(1, Math.floor(points.length / 4));
   return (
     <Card label="Contact growth" className={cn("flex flex-col", className)}>
-      <CardHeader title="Contact Growth" action={<PhaseLink feature="Contacts" />} />
+      <CardHeader title="Contact Growth" action={<ViewAll href="/contacts" />} />
       {!data ? (
         <div className="space-y-3 px-5 pb-5">
           <Skeleton className="h-[200px] w-full rounded-lg" />
@@ -410,12 +414,13 @@ export function UpcomingCard({ data, className }: { data: DashboardData | undefi
 // ── Quick actions ────────────────────────────────────────────────────
 
 export function QuickActionsBar({ onCreate }: { onCreate: (type: "email" | "sms") => void }) {
+  const router = useRouter();
   const items: { label: string; icon: Icon; fg: string; bg: string; onClick: () => void }[] = [
     { label: "Create Email Campaign", icon: EnvelopeSimpleIcon, fg: "var(--ch-email-fg)", bg: "var(--ch-email-bg)", onClick: () => onCreate("email") },
     { label: "Create SMS Campaign", icon: ChatCircleDotsIcon, fg: "var(--ch-sms-fg)", bg: "var(--ch-sms-bg)", onClick: () => onCreate("sms") },
-    { label: "Import Contacts", icon: AddressBookIcon, fg: "var(--campaign-action)", bg: "var(--campaign-tint)", onClick: () => notInPhase("Importing contacts") },
-    { label: "Create Automation", icon: TreeStructureIcon, fg: "var(--ch-automation-fg)", bg: "var(--ch-automation-bg)", onClick: () => notInPhase("Automation builder") },
-    { label: "Create Signup Form", icon: BrowserIcon, fg: "var(--ch-journey-fg)", bg: "var(--ch-journey-bg)", onClick: () => notInPhase("Signup forms") },
+    { label: "Import Contacts", icon: AddressBookIcon, fg: "var(--campaign-action)", bg: "var(--campaign-tint)", onClick: () => router.push("/contacts?import=1") },
+    { label: "Create Automation", icon: TreeStructureIcon, fg: "var(--ch-automation-fg)", bg: "var(--ch-automation-bg)", onClick: () => router.push("/workflows/new") },
+    { label: "Create Signup Form", icon: BrowserIcon, fg: "var(--ch-journey-fg)", bg: "var(--ch-journey-bg)", onClick: () => router.push("/forms/new") },
   ];
   return (
     <Card label="Quick actions" className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:gap-4 lg:px-5">

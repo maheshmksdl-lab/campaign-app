@@ -46,6 +46,20 @@ function read<T>(area: Area, key: string, fallback: T): T {
   return value;
 }
 
+/** Write a stored value from outside a component (event handlers that navigate away); readers update live. */
+export function writeStored<T>(key: string, next: T, area: Area = "local") {
+  try {
+    if (next === null) storage(area)?.removeItem(key);
+    else storage(area)?.setItem(key, JSON.stringify(next));
+  } catch {
+    cache.set(`${area}:${key}`, { raw: JSON.stringify(next), value: next });
+  }
+  emit();
+}
+
+/** Read a stored value once (outside render). */
+export const readStored = <T>(key: string, fallback: T, area: Area = "local"): T => read(area, key, fallback);
+
 /** `fallback` must be a stable reference (a module-level constant). */
 export function useStoredState<T>(key: string, fallback: T, area: Area = "local") {
   const subscribe = useCallback((cb: () => void) => {

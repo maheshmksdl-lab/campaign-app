@@ -19,7 +19,7 @@ import { ConfirmDialog } from "@/components/shared/campaign-ui";
 import type { MenuAction } from "@/components/shared/row-menu";
 import { useArchiveCampaigns, useDeleteCampaigns, useDuplicateCampaign, usePauseCampaign, useRestoreCampaigns, useResumeCampaign } from "@/hooks/use-campaigns";
 import { ApiError } from "@/lib/api/campaigns";
-import { canPause, canResume, canSchedule, isFlow } from "@/lib/campaign-meta";
+import { canPause, canResume, canSchedule, contentLocked, isFlow } from "@/lib/campaign-meta";
 import { pluralize } from "@/lib/format";
 import { campaignHref } from "@/lib/routes";
 import type { Campaign } from "@/lib/types/campaigns";
@@ -46,6 +46,9 @@ export function useCampaignActions({ onDeleted }: { onDeleted?: (ids: string[]) 
   const deleteM = useDeleteCampaigns();
 
   const fail = (title: string) => (e: Error) => toast.error(title, { description: e.message });
+
+  /** Edit opens the full-page editor; campaigns that already went out can only be renamed. */
+  const edit = (c: Campaign) => (contentLocked(c) ? setEditing(c) : router.push(campaignHref(c.id)));
 
   const duplicate = (c: Campaign) =>
     duplicateM.mutate(c.id, {
@@ -115,7 +118,7 @@ export function useCampaignActions({ onDeleted }: { onDeleted?: (ids: string[]) 
     const archived = c.status === "archived";
     return [
       !onDetails && { label: "View details", icon: ArrowSquareOutIcon, href: campaignHref(c.id) },
-      !archived && { label: "Edit", icon: PencilSimpleIcon, onSelect: () => setEditing(c) },
+      !archived && { label: contentLocked(c) ? "Rename" : "Edit", icon: PencilSimpleIcon, onSelect: () => edit(c) },
       { label: "Preview", icon: EyeIcon, onSelect: () => setPreviewing(c) },
       { label: "Duplicate", icon: CopyIcon, onSelect: () => duplicate(c) },
       canSchedule(c) && { label: c.status === "scheduled" || c.status === "paused" ? "Reschedule" : "Schedule", icon: CalendarCheckIcon, onSelect: () => setScheduling(c), separatorBefore: true },
@@ -132,7 +135,7 @@ export function useCampaignActions({ onDeleted }: { onDeleted?: (ids: string[]) 
     <>
       <EditCampaignDialog campaign={editing} onOpenChange={(o) => !o && setEditing(null)} />
       <ScheduleDialog campaign={scheduling} onOpenChange={(o) => !o && setScheduling(null)} />
-      <PreviewDialog campaign={previewing} onOpenChange={(o) => !o && setPreviewing(null)} onEdit={setEditing} />
+      <PreviewDialog campaign={previewing} onOpenChange={(o) => !o && setPreviewing(null)} onEdit={edit} />
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(o) => !o && setDeleting(null)}
@@ -154,7 +157,7 @@ export function useCampaignActions({ onDeleted }: { onDeleted?: (ids: string[]) 
 
   return {
     actionsFor,
-    edit: setEditing,
+    edit,
     preview: setPreviewing,
     schedule: setScheduling,
     duplicate,
