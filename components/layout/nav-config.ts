@@ -7,12 +7,13 @@ import {
   FlaskIcon,
   GearSixIcon,
   HouseSimpleIcon,
+  ListBulletsIcon,
   NotePencilIcon,
   PathIcon,
   PlugsConnectedIcon,
   PaperPlaneTiltIcon,
+  StackIcon,
   TreeStructureIcon,
-  UsersFourIcon,
   BrowserIcon,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -30,22 +31,58 @@ export interface NavItem {
   type?: "email" | "sms";
 }
 
-export const NAV_ITEMS: NavItem[] = [
-  { label: "Overview", icon: HouseSimpleIcon, href: "/dashboard" },
-  { label: "Campaigns", icon: PaperPlaneTiltIcon, href: "/campaigns" },
-  { label: "Email Campaigns", icon: EnvelopeSimpleIcon, href: "/campaigns", type: "email" },
-  { label: "SMS Campaigns", icon: ChatCircleIcon, href: "/campaigns", type: "sms" },
-  { label: "Contacts", icon: AddressBookIcon },
-  { label: "Lists & Segments", icon: UsersFourIcon },
-  { label: "Email Templates", icon: NotePencilIcon },
-  { label: "Automation", icon: TreeStructureIcon },
-  { label: "Customer Journeys", icon: PathIcon },
-  { label: "A/B Testing", icon: FlaskIcon },
-  { label: "Forms & Signup", icon: BrowserIcon },
-  { label: "Reports & Analytics", icon: ChartBarIcon },
-  { label: "Integrations", icon: PlugsConnectedIcon },
-  { label: "Settings", icon: GearSixIcon },
+/** A titled sidebar section; the first section has no heading. */
+export interface NavGroup {
+  label?: string;
+  items: NavItem[];
+}
+
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    items: [
+      { label: "Overview", icon: HouseSimpleIcon, href: "/dashboard" },
+      { label: "Reports & Analytics", icon: ChartBarIcon },
+    ],
+  },
+  {
+    label: "Campaigns",
+    items: [
+      { label: "Campaigns", icon: PaperPlaneTiltIcon, href: "/campaigns" },
+      { label: "Email Campaigns", icon: EnvelopeSimpleIcon, href: "/campaigns", type: "email" },
+      { label: "SMS Campaigns", icon: ChatCircleIcon, href: "/campaigns", type: "sms" },
+      { label: "A/B Testing", icon: FlaskIcon },
+    ],
+  },
+  {
+    label: "Audience",
+    items: [
+      { label: "Contacts", icon: AddressBookIcon },
+      { label: "Lists", icon: ListBulletsIcon },
+      { label: "Segments", icon: StackIcon },
+      { label: "Forms & Signup", icon: BrowserIcon },
+    ],
+  },
+  {
+    label: "Automation",
+    items: [
+      { label: "Automation", icon: TreeStructureIcon },
+      { label: "Customer Journeys", icon: PathIcon },
+    ],
+  },
+  {
+    label: "Library",
+    items: [{ label: "Email Templates", icon: NotePencilIcon }],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { label: "Integrations", icon: PlugsConnectedIcon },
+      { label: "Settings", icon: GearSixIcon },
+    ],
+  },
 ];
+
+export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`);
 

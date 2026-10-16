@@ -67,10 +67,13 @@ export function usePlanUsage() {
   return gated(useQuery({ queryKey: campaignKeys.plan, queryFn: getPlanUsage, staleTime: Infinity }), hydrated);
 }
 
+/** Lists and segments show which campaigns use them (audienceKeys.all in use-audience). */
+const AUDIENCE_ROOT = ["audience"] as const;
+
 /** Every campaign view reads the same store, so a change refreshes them all. */
 function useInvalidateAll() {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: campaignKeys.all });
+  return () => Promise.all([qc.invalidateQueries({ queryKey: campaignKeys.all }), qc.invalidateQueries({ queryKey: AUDIENCE_ROOT })]);
 }
 
 export function useCreateCampaign() {
@@ -120,7 +123,7 @@ export function useDeleteCampaigns() {
     // Deleted detail pages must not refetch (they'd show "not found" behind the redirect).
     onSuccess: (_r, ids) => {
       ids.forEach((id) => qc.removeQueries({ queryKey: campaignKeys.detail(id) }));
-      return qc.invalidateQueries({ queryKey: campaignKeys.all });
+      return Promise.all([qc.invalidateQueries({ queryKey: campaignKeys.all }), qc.invalidateQueries({ queryKey: AUDIENCE_ROOT })]);
     },
   });
 }

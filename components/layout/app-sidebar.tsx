@@ -14,7 +14,7 @@ import { PLAN_NAME } from "@/lib/mock-data/campaigns";
 import { notInPhase } from "@/lib/phase";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "./app-logo";
-import { activeNav, NAV_ITEMS, navHref, type NavItem } from "./nav-config";
+import { activeNav, NAV_GROUPS, navHref, type NavItem } from "./nav-config";
 import { useShell } from "./shell-context";
 
 /** Wraps an item in a right-side tooltip on the collapsed rail. */
@@ -65,13 +65,33 @@ function NavList({ collapsed, onNavigate, type }: { collapsed: boolean; onNaviga
   const pathname = usePathname();
   const current = activeNav(pathname, type);
   return (
-    <ul className="space-y-1">
-      {NAV_ITEMS.map((item) => (
-        <li key={item.label}>
-          <NavRow item={item} active={item === current} collapsed={collapsed} onNavigate={onNavigate} />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-1">
+      {NAV_GROUPS.map((group, i) => {
+        const headingId = group.label ? `nav-group-${i}` : undefined;
+        return (
+          <div key={group.label ?? i} role="group" aria-labelledby={headingId}>
+            {group.label &&
+              (collapsed ? (
+                <>
+                  <span id={headingId} className="sr-only">{group.label}</span>
+                  <div aria-hidden className="mx-2 my-2 border-t border-line" />
+                </>
+              ) : (
+                <p id={headingId} className="px-3.5 pt-4 pb-1.5 text-[12px] leading-4 font-medium text-primary">
+                  {group.label}
+                </p>
+              ))}
+            <ul className="space-y-1">
+              {group.items.map((item) => (
+                <li key={item.label}>
+                  <NavRow item={item} active={item === current} collapsed={collapsed} onNavigate={onNavigate} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

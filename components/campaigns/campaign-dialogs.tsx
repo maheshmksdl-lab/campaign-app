@@ -31,7 +31,7 @@ function SmsCounter({ text }: { text: string }) {
 
 // ── Create ───────────────────────────────────────────────────────────
 
-/** Frontend-only "new campaign" form: saves a draft to this tab's store. */
+/** Frontend-only "new campaign" form: saves a draft to the browser's demo store. */
 export function CreateCampaignDialog({ open, onOpenChange, initialType = "email", onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; initialType?: "email" | "sms"; onCreated?: (c: Campaign) => void }) {
   return open ? <CreateForm onOpenChange={onOpenChange} initialType={initialType} onCreated={onCreated} /> : null;
 }

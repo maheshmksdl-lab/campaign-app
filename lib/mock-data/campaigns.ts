@@ -1,7 +1,7 @@
 /**
  * Fixed demo data: audiences and campaigns. Results (delivered, opens, clicks…)
  * are derived here from a few rates with a seeded generator, so every screen
- * shows the same numbers and nothing changes between reloads.
+ * shows the same numbers. Changes people make are saved on top (lib/api/store).
  */
 import { addDays, addMinutes, daysBetween, formatDateTime, formatNumber, pct } from "@/lib/format";
 import type { Audience, Campaign, CampaignEvent, CampaignStatus, CampaignType } from "@/lib/types/campaigns";

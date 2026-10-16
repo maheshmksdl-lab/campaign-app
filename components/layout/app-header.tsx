@@ -3,12 +3,14 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BellIcon, CaretDownIcon, GearSixIcon, InfoIcon, ListIcon, MagnifyingGlassIcon, QuestionIcon, SignOutIcon, UserCircleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowCounterClockwiseIcon, BellIcon, CaretDownIcon, GearSixIcon, InfoIcon, ListIcon, MagnifyingGlassIcon, PlusIcon, QuestionIcon, SignOutIcon, UserCircleIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { StatusBadge, TypeIcon } from "@/components/shared/campaign-ui";
+import { CreateCampaignDialog, useCreateDialog } from "@/components/campaigns/campaign-dialogs";
+import { ConfirmDialog, primaryButtonClass, StatusBadge, TypeIcon } from "@/components/shared/campaign-ui";
 import { useCampaignSearch } from "@/hooks/use-campaigns";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useStoredState } from "@/hooks/use-stored-state";
+import { resetDemoData } from "@/lib/api/store";
 import { initials } from "@/lib/format";
 import { CURRENT_USER } from "@/lib/mock-data/campaigns";
 import { notInPhase } from "@/lib/phase";
@@ -192,44 +194,78 @@ function NotificationsMenu() {
 }
 
 function AccountMenu() {
+  const [confirmReset, setConfirmReset] = useState(false);
+  const reset = () => {
+    resetDemoData();
+    // A fresh page load clears every cached view at once.
+    window.location.reload();
+  };
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Account menu for ${CURRENT_USER.name}`}
-        className="ml-1 inline-flex items-center gap-2.5 rounded-full p-0.5 transition-colors hover:bg-brand-depth-10 focus-visible:outline-2 focus-visible:outline-brand-action sm:rounded-lg sm:py-1 sm:pr-2 sm:pl-1"
-      >
-        <span className="inline-flex size-9 items-center justify-center rounded-full bg-gradient-brand text-[12.5px] font-semibold text-white" aria-hidden>
-          {initials(CURRENT_USER.name)}
-        </span>
-        <span className="hidden text-left xl:block">
-          <span className="block text-[13px] leading-4 font-semibold text-ink">{CURRENT_USER.name}</span>
-          <span className="block text-[12px] leading-4 text-ink-muted">{CURRENT_USER.org}</span>
-        </span>
-        <CaretDownIcon size={14} aria-hidden className="hidden text-ink-muted sm:block" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-xl">
-        <DropdownMenuLabel className="px-2 py-1.5">
-          <span className="block text-[14px] font-semibold text-ink">{CURRENT_USER.name}</span>
-          <span className="block text-[12px] font-normal text-ink-muted">{CURRENT_USER.email}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => notInPhase("Profile settings")}>
-          <UserCircleIcon aria-hidden /> My profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => notInPhase("Settings")}>
-          <GearSixIcon aria-hidden /> Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => notInPhase("Sign out")}>
-          <SignOutIcon aria-hidden /> Sign out
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <p className="flex gap-2 px-2 py-1.5 text-[12px] leading-4 text-ink-muted">
-          <InfoIcon size={14} aria-hidden className="mt-px shrink-0" />
-          Frontend demo: data is sample data held in this browser tab and resets on reload. There is no real sign-in.
-        </p>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={`Account menu for ${CURRENT_USER.name}`}
+          className="ml-1 inline-flex items-center gap-2.5 rounded-full p-0.5 transition-colors hover:bg-brand-depth-10 focus-visible:outline-2 focus-visible:outline-brand-action sm:rounded-lg sm:py-1 sm:pr-2 sm:pl-1"
+        >
+          <span className="inline-flex size-9 items-center justify-center rounded-full bg-gradient-brand text-[12.5px] font-semibold text-white" aria-hidden>
+            {initials(CURRENT_USER.name)}
+          </span>
+          <span className="hidden text-left xl:block">
+            <span className="block text-[13px] leading-4 font-semibold text-ink">{CURRENT_USER.name}</span>
+            <span className="block text-[12px] leading-4 text-ink-muted">{CURRENT_USER.org}</span>
+          </span>
+          <CaretDownIcon size={14} aria-hidden className="hidden text-ink-muted sm:block" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64 rounded-xl">
+          <DropdownMenuLabel className="px-2 py-1.5">
+            <span className="block text-[14px] font-semibold text-ink">{CURRENT_USER.name}</span>
+            <span className="block text-[12px] font-normal text-ink-muted">{CURRENT_USER.email}</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => notInPhase("Profile settings")}>
+            <UserCircleIcon aria-hidden /> My profile
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => notInPhase("Settings")}>
+            <GearSixIcon aria-hidden /> Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setConfirmReset(true)}>
+            <ArrowCounterClockwiseIcon aria-hidden /> Reset demo data
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => notInPhase("Sign out")}>
+            <SignOutIcon aria-hidden /> Sign out
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <p className="flex gap-2 px-2 py-1.5 text-[12px] leading-4 text-ink-muted">
+            <InfoIcon size={14} aria-hidden className="mt-px shrink-0" />
+            Frontend demo: sample data, with your changes saved in this browser only. There is no real sign-in.
+          </p>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmDialog
+        open={confirmReset}
+        onOpenChange={setConfirmReset}
+        title="Reset demo data?"
+        description="Every campaign, contact, list, segment and template change saved in this browser will be removed, and the demo starts again from its sample data. This can't be undone."
+        confirmLabel="Reset demo data"
+        onConfirm={reset}
+      />
+    </>
+  );
+}
+
+/** Opens the same Create Campaign form as the dashboard, from any page. */
+function CreateCampaignAction() {
+  const router = useRouter();
+  const create = useCreateDialog();
+  return (
+    <>
+      <button type="button" onClick={() => create.open("email")} aria-label="Create campaign" className={cn(primaryButtonClass, "px-2.5 sm:px-3.5")}>
+        <PlusIcon size={16} weight="bold" aria-hidden />
+        <span className="hidden lg:inline">Create Campaign</span>
+      </button>
+      <CreateCampaignDialog {...create.props} onCreated={(c) => router.push(campaignHref(c.id))} />
+    </>
   );
 }
 
@@ -252,7 +288,7 @@ function HelpMenu() {
         </div>
         <DropdownMenuSeparator />
         <p className="px-2 py-1.5 text-[12px] leading-4 text-ink-muted">
-          This is a frontend prototype. Campaigns you create, schedule or edit are kept in this browser tab only — no email or SMS is ever sent.
+          This is a frontend prototype. Campaigns, contacts and templates you change are saved in this browser only — no email or SMS is ever sent. Reset the demo from the account menu.
         </p>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -282,6 +318,7 @@ export function AppHeader() {
         <button type="button" onClick={() => setMobileSearch(true)} aria-label="Search" className={cn(toolClass, "md:hidden")}>
           <MagnifyingGlassIcon size={20} aria-hidden />
         </button>
+        <CreateCampaignAction />
         <NotificationsMenu />
         <HelpMenu />
         <AccountMenu />

@@ -586,7 +586,7 @@ export function CampaignDetailView({ id }: { id: string }) {
         <Breadcrumbs items={[crumbs[0], { label: missing ? "Not found" : "Error" }]} />
         <Card className="mt-4">
           {missing ? (
-            <EmptyState icon={EnvelopeSimpleIcon} title="This campaign doesn't exist" hint="It may have been deleted, or created in an earlier session — demo data resets when the page reloads." action={backLink} />
+            <EmptyState icon={EnvelopeSimpleIcon} title="This campaign doesn't exist" hint="It may have been deleted, or the demo data in this browser was reset." action={backLink} />
           ) : (
             <ErrorState action={<OutlineButton onClick={() => refetch()}>Try again</OutlineButton>} />
           )}
@@ -671,7 +671,7 @@ export function CampaignDetailView({ id }: { id: string }) {
           )}
 
           <p className="mt-4 text-[12px] leading-4 text-ink-muted">
-            {TYPE_META[c.type].label} campaign · sample data held in this browser tab · {canPause(c) || canResume(c) ? "pause and resume change only this demo record" : "nothing is sent to recipients"}.
+            {TYPE_META[c.type].label} campaign · sample data held in this browser · {canPause(c) || canResume(c) ? "pause and resume change only this demo record" : "nothing is sent to recipients"}.
           </p>
         </>
       )}

@@ -197,5 +197,5 @@ export function FormDialog({
   );
 }
 
-/** Standard "saved in this tab only" suffix for toasts. */
-export const SESSION_NOTE = "Saved in this browser tab only — nothing is sent.";
+/** Standard "saved in this browser only" suffix for toasts. */
+export const SESSION_NOTE = "Saved in this browser only — nothing is sent.";

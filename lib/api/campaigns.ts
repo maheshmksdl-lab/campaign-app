@@ -1,27 +1,22 @@
 /**
  * Mock Campaigns API — the only module to replace when a backend exists.
- * State lives in memory in this browser tab and resets on reload; nothing is
- * sent to a server and no email or SMS ever goes out. Every screen reads
+ * State is kept in this browser (see ./store); nothing is sent to a server
+ * and no email or SMS ever goes out. Every screen reads
  * through these functions, so a change made here shows up on the dashboard,
  * the listing and the details page alike.
  */
 import { addDays, daysBetween, formatDateTime, formatNumber, parseDateTime, pct, pluralize } from "@/lib/format";
 import { canPause, canResume, canSchedule, contentLocked, isFlow, isSms } from "@/lib/campaign-meta";
-import { AUDIENCES, audienceById, automationSends, CONTACT_COUNT, CONTACT_LIMIT, CURRENT_USER, DEFAULT_SENDER, DEMO_TODAY, ENGAGEMENT_CURVE, hash, newContactsOn, rng, runEnd } from "@/lib/mock-data/campaigns";
-import { activity, campaigns, clone, delay, demoNow, replaceCampaigns } from "./store";
-import type { ActivityEntry, Audience, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
+import { automationSends, CONTACT_COUNT, CONTACT_LIMIT, CURRENT_USER, DEFAULT_SENDER, DEMO_TODAY, ENGAGEMENT_CURVE, hash, newContactsOn, rng, runEnd } from "@/lib/mock-data/campaigns";
+import { liveAudience } from "./audiences";
+import { ApiError, type BulkResult } from "./errors";
+import { activity, campaigns, clone, commit, delay, demoNow, newId as makeId, replaceCampaigns } from "./store";
+import type { ActivityEntry, Campaign, CampaignAnalytics, CampaignDetail, CampaignEdit, CampaignEvent, CampaignInput, CampaignType, DashboardData, DayStats, Kpi } from "@/lib/types/campaigns";
 
-let seq = 0;
-const newId = () => `cmp-${Date.now().toString(36)}${++seq}`;
+export { ApiError, type BulkResult } from "./errors";
+export { getAudiences } from "./audiences";
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public field?: string,
-  ) {
-    super(message);
-  }
-}
+const newId = () => makeId("cmp");
 
 function find(id: string): Campaign {
   const c = campaigns().find((x) => x.id === id);
@@ -36,17 +31,10 @@ function record(c: Campaign, kind: CampaignEvent["kind"], text: string) {
 }
 
 function log(entry: Omit<ActivityEntry, "id" | "at">) {
-  activity().unshift({ ...entry, id: `act-${Date.now().toString(36)}-${++seq}`, at: demoNow() });
+  activity().unshift({ ...entry, id: makeId("act"), at: demoNow() });
 }
 
 const activityKind = (t: CampaignType): ActivityEntry["kind"] => t;
-
-// ── Lookups ──────────────────────────────────────────────────────────
-
-export async function getAudiences(): Promise<Audience[]> {
-  await delay(40);
-  return clone(AUDIENCES);
-}
 
 // ── Lists ────────────────────────────────────────────────────────────
 
@@ -314,7 +302,7 @@ function uniqueName(base: string): string {
 
 export async function createCampaign(input: CampaignInput): Promise<Campaign> {
   await delay();
-  const aud = audienceById(input.audienceId);
+  const aud = liveAudience(input.audienceId);
   if (!aud) throw new ApiError("Choose an audience", "audienceId");
   const name = input.name.trim();
   if (campaigns().some((c) => c.name.toLowerCase() === name.toLowerCase())) throw new ApiError("A campaign with this name already exists", "name");
@@ -342,6 +330,7 @@ export async function createCampaign(input: CampaignInput): Promise<Campaign> {
   };
   campaigns().unshift(c);
   log({ kind: activityKind(c.type), title: c.name, detail: `${sms ? "SMS" : "Email"} draft created for ${formatNumber(aud.size)} contacts`, campaignId: c.id });
+  commit();
   return clone(c);
 }
 
@@ -365,7 +354,7 @@ export async function updateCampaign(id: string, edit: CampaignEdit): Promise<Ca
     set("senderName", edit.senderName?.trim(), "sender name");
     set("senderEmail", edit.senderEmail?.trim(), "sender email");
     if (edit.audienceId && edit.audienceId !== c.audienceId) {
-      const aud = audienceById(edit.audienceId);
+      const aud = liveAudience(edit.audienceId);
       if (!aud) throw new ApiError("Choose an audience", "audienceId");
       c.audienceId = aud.id;
       c.audience = aud.name;
@@ -374,6 +363,7 @@ export async function updateCampaign(id: string, edit: CampaignEdit): Promise<Ca
     }
   }
   if (changed.length) record(c, "edited", `Edited ${changed.join(", ")}`);
+  commit();
   return clone(c);
 }
 
@@ -381,7 +371,7 @@ export async function duplicateCampaign(id: string): Promise<Campaign> {
   await delay();
   const src = find(id);
   const now = demoNow();
-  const aud = audienceById(src.audienceId);
+  const aud = liveAudience(src.audienceId);
   const copy: Campaign = {
     id: newId(),
     name: uniqueName(`Copy of ${src.name}`),
@@ -403,6 +393,7 @@ export async function duplicateCampaign(id: string): Promise<Campaign> {
   const i = campaigns().findIndex((c) => c.id === id);
   campaigns().splice(Math.max(0, i), 0, copy);
   log({ kind: activityKind(copy.type), title: copy.name, detail: `Duplicated from ${src.name}`, campaignId: copy.id });
+  commit();
   return clone(copy);
 }
 
@@ -417,6 +408,7 @@ export async function scheduleCampaign(id: string, at: string): Promise<Campaign
   c.pausedFrom = undefined;
   record(c, "scheduled", before ? `Rescheduled from ${formatDateTime(before)} to ${formatDateTime(at)}` : `Scheduled for ${formatDateTime(at)}`);
   log({ kind: activityKind(c.type), title: c.name, detail: `${before ? "Rescheduled" : "Scheduled"} for ${formatDateTime(at)}`, campaignId: c.id });
+  commit();
   return clone(c);
 }
 
@@ -428,6 +420,7 @@ export async function pauseCampaign(id: string): Promise<Campaign> {
   c.status = "paused";
   record(c, "paused", isFlow(c) ? "Paused — no new contacts enter" : c.pausedFrom === "scheduled" ? "Paused before sending" : "Sending paused");
   log({ kind: activityKind(c.type), title: c.name, detail: "Paused" , campaignId: c.id });
+  commit();
   return clone(c);
 }
 
@@ -442,12 +435,8 @@ export async function resumeCampaign(id: string): Promise<Campaign> {
   c.pausedFrom = undefined;
   record(c, "resumed", c.status === "scheduled" ? `Resumed — sends ${formatDateTime(c.scheduledAt!)}` : "Resumed");
   log({ kind: activityKind(c.type), title: c.name, detail: "Resumed", campaignId: c.id });
+  commit();
   return clone(c);
-}
-
-export interface BulkResult {
-  done: number;
-  skipped: number;
 }
 
 /** Sending campaigns must be paused first, so they're skipped. */
@@ -463,6 +452,7 @@ export async function archiveCampaigns(ids: string[]): Promise<BulkResult> {
     done++;
   }
   if (done) log({ kind: "email", title: done === 1 ? (campaigns().find((c) => ids.includes(c.id) && c.status === "archived")?.name ?? "Campaign") : pluralize(done, "campaign"), detail: "Archived" });
+  commit();
   return { done, skipped: ids.length - done };
 }
 
@@ -482,6 +472,7 @@ export async function restoreCampaigns(ids: string[]): Promise<BulkResult> {
     record(c, "restored", from === "scheduled" ? "Restored as paused — reschedule or resume to send" : "Restored from archive");
     done++;
   }
+  commit();
   return { done, skipped: ids.length - done };
 }
 
@@ -492,5 +483,6 @@ export async function deleteCampaigns(ids: string[]): Promise<BulkResult> {
   const names = campaigns().filter((c) => removable.has(c.id)).map((c) => c.name);
   replaceCampaigns(campaigns().filter((c) => !removable.has(c.id)));
   if (removable.size) log({ kind: "deleted", title: removable.size === 1 ? names[0] : pluralize(removable.size, "campaign"), detail: "Deleted" });
+  commit();
   return { done: removable.size, skipped: ids.length - removable.size };
 }

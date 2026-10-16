@@ -15,7 +15,9 @@ export interface CampaignEvent {
 export interface Audience {
   id: string;
   name: string;
+  /** Contacts a campaign would reach (reachable members). */
   size: number;
+  kind?: "list" | "segment";
 }
 
 export interface Campaign {
@@ -79,7 +81,7 @@ export interface DayStats {
 export interface ActivityEntry {
   id: string;
   at: string;
-  kind: "email" | "sms" | "automation" | "journey" | "contacts" | "form" | "deleted";
+  kind: "email" | "sms" | "automation" | "journey" | "contacts" | "list" | "segment" | "template" | "form" | "deleted";
   title: string;
   detail: string;
   campaignId?: string;
